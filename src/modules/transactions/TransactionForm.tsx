@@ -8,11 +8,11 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { LabelBadge } from '@/components/LabelBadge'
 import { LabelPicker } from '@/components/LabelPicker'
-import { OwnerPicker } from '@/components/OwnerPicker'
 import { AccountPicker } from '@/components/AccountPicker'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import type { Transaction, OwnerId } from '@/core/types'
 import { useAppStore, useLabels, useUsers, useAccounts } from '@/core/store'
+import { cn } from '@/lib/utils'
 
 interface TransactionFormProps {
   transaction?: Transaction  // undefined → new transaction
@@ -28,7 +28,7 @@ type FormValues = {
   notes: string
   reviewed: boolean
   labelIds: string[]
-  ownerId: OwnerId
+  ownerId: OwnerId | ''
 }
 
 function getDefaults(tx?: Transaction): FormValues {
@@ -45,14 +45,14 @@ function getDefaults(tx?: Transaction): FormValues {
     }
   }
   return {
-    date:        format(new Date(), 'yyyy-MM-dd'),
+    date:        '',
     merchant:    '',
     amount:      '',
     accountName: '',
     notes:       '',
     reviewed:    false,
     labelIds:    [],
-    ownerId:     'shared',
+    ownerId:     '',
   }
 }
 
@@ -81,6 +81,7 @@ export function TransactionForm({ transaction, onSuccess, onCancel }: Transactio
     if (!values.merchant.trim())    next.merchant    = 'Required'
     if (!values.date)               next.date        = 'Required'
     if (!values.accountName.trim()) next.accountName = 'Required'
+    if (!values.ownerId)            next.ownerId     = 'Required'
     const parsed = parseFloat(values.amount)
     if (!values.amount || isNaN(parsed)) next.amount = 'Enter a valid number'
     setErrors(next)
@@ -101,10 +102,11 @@ export function TransactionForm({ transaction, onSuccess, onCancel }: Transactio
       ...(values.notes.trim() ? { notes: values.notes.trim() } : {}),
     }
 
+    const ownerId = values.ownerId as OwnerId
     if (isEditing && transaction) {
-      updateTransaction(transaction.id, { ...data, labelIds: values.labelIds, ownerId: values.ownerId })
+      updateTransaction(transaction.id, { ...data, labelIds: values.labelIds, ownerId })
     } else {
-      addTransaction({ ...data, ownerId: values.ownerId, labelIds: values.labelIds })
+      addTransaction({ ...data, ownerId, labelIds: values.labelIds })
     }
     onSuccess()
   }
@@ -123,7 +125,7 @@ export function TransactionForm({ transaction, onSuccess, onCancel }: Transactio
     <form onSubmit={handleSubmit} className="space-y-4 pt-1" noValidate>
       {/* Merchant */}
       <div className="space-y-1.5">
-        <Label htmlFor="merchant">Merchant</Label>
+        <Label htmlFor="merchant">Merchant <span className="text-destructive">*</span></Label>
         <Input
           id="merchant"
           value={values.merchant}
@@ -139,7 +141,7 @@ export function TransactionForm({ transaction, onSuccess, onCancel }: Transactio
       {/* Amount + Date */}
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
-          <Label htmlFor="amount">Amount</Label>
+          <Label htmlFor="amount">Amount <span className="text-destructive">*</span></Label>
           <Input
             id="amount"
             type="number"
@@ -154,7 +156,7 @@ export function TransactionForm({ transaction, onSuccess, onCancel }: Transactio
           )}
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="date">Date</Label>
+          <Label htmlFor="date">Date <span className="text-destructive">*</span></Label>
           <Input
             id="date"
             type="date"
@@ -169,7 +171,7 @@ export function TransactionForm({ transaction, onSuccess, onCancel }: Transactio
 
       {/* Account */}
       <div className="space-y-1.5">
-        <Label>Account</Label>
+        <Label>Account <span className="text-destructive">*</span></Label>
         <AccountPicker
           accounts={allAccounts}
           value={values.accountName}
@@ -183,20 +185,30 @@ export function TransactionForm({ transaction, onSuccess, onCancel }: Transactio
 
       {/* Owner */}
       <div className="space-y-1.5">
-        <Label>Owner</Label>
-        <div className="flex items-center gap-2">
-          <OwnerPicker
-            users={users}
-            value={values.ownerId}
-            onChange={(id) => field('ownerId', id)}
-            triggerClassName="border border-border"
-          />
-          <span className="text-sm text-muted-foreground">
-            {values.ownerId === 'shared'
-              ? 'Shared'
-              : users.find((u) => u.id === values.ownerId)?.name}
-          </span>
+        <Label>Owner <span className="text-destructive">*</span></Label>
+        <div className="flex gap-2">
+          {([
+            { id: users[0].id, label: users[0].name,  emoji: users[0].avatarEmoji },
+            { id: users[1].id, label: users[1].name,  emoji: users[1].avatarEmoji },
+            { id: 'shared',    label: 'Shared',        emoji: '♾' },
+          ] as { id: OwnerId; label: string; emoji: string }[]).map((opt) => (
+            <button
+              key={opt.id}
+              type="button"
+              onClick={() => field('ownerId', opt.id)}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm transition-colors',
+                values.ownerId === opt.id
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'
+              )}
+            >
+              <span>{opt.emoji}</span>
+              <span>{opt.label}</span>
+            </button>
+          ))}
         </div>
+        {errors.ownerId && <p className="text-xs text-destructive">{errors.ownerId}</p>}
       </div>
 
       {/* Notes */}
