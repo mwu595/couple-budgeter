@@ -1,12 +1,15 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import { v4 as uuidv4 } from 'uuid'
+import { addDays, addMonths, setDate, getDate, parseISO, format as fnsFormat } from 'date-fns'
 import type {
   AppState,
   Transaction,
   Label,
   Account,
   Project,
+  RecurringIncome,
+  RecurringFrequency,
   User,
   UserId,
   ActivePeriod,
@@ -39,7 +42,31 @@ import {
   insertProject,
   patchProject,
   removeProject,
+  getRecurringIncomes,
+  insertRecurringIncome,
+  patchRecurringIncome,
+  removeRecurringIncome,
 } from '@/lib/db'
+
+// ─── Pure helper: advance a date by one recurrence interval ─────────────────
+
+function computeNextDate(currentDate: string, frequency: RecurringFrequency): string {
+  const d = parseISO(currentDate)
+  switch (frequency) {
+    case 'weekly':
+      return fnsFormat(addDays(d, 7), 'yyyy-MM-dd')
+    case 'biweekly':
+      return fnsFormat(addDays(d, 14), 'yyyy-MM-dd')
+    case 'monthly':
+      return fnsFormat(addMonths(d, 1), 'yyyy-MM-dd')
+    case 'semimonthly': {
+      const day = getDate(d)
+      if (day < 15) return fnsFormat(setDate(d, 15), 'yyyy-MM-dd')
+      // On 15th or later → 1st of next month
+      return fnsFormat(addMonths(setDate(d, 1), 1), 'yyyy-MM-dd')
+    }
+  }
+}
 
 // ─── Store type: AppState + all actions ────────────────────────────────────
 
@@ -75,6 +102,12 @@ export interface AppStore extends AppState {
   updateAccount: (id: string, newName: string) => Promise<void>
   deleteAccount: (id: string) => Promise<void>
 
+  // Recurring income actions
+  addRecurringIncome: (data: Omit<RecurringIncome, 'id' | 'createdAt'>) => Promise<void>
+  updateRecurringIncome: (id: string, updates: Partial<Omit<RecurringIncome, 'id' | 'createdAt'>>) => Promise<void>
+  deleteRecurringIncome: (id: string) => Promise<void>
+  spawnDueIncomes: () => Promise<void>
+
   // User actions
   updateUser: (id: UserId, updates: Partial<Omit<User, 'id'>>) => Promise<void>
 
@@ -86,6 +119,7 @@ export interface AppStore extends AppState {
   // Onboarding (local only)
   setOnboardingComplete: (value: boolean) => void
   setSampleDataDismissed: (value: boolean) => void
+  setDashboardExcludedProjectIds: (ids: string[]) => void
 
   // Data management
   resetToMockData: () => Promise<void>
@@ -98,6 +132,7 @@ const DEFAULT_FILTERS: TransactionFilters = {
   labelIds: [],
   ownerId: 'all',
   reviewed: 'all',
+  projectId: undefined,
 }
 
 const DEFAULT_PERIOD: ActivePeriod = { preset: 'all_time' }
@@ -116,10 +151,12 @@ function buildInitialState(): AppState {
     labels: [],
     accounts: [],
     projects: [],
+    recurringIncomes: [],
     activePeriod: DEFAULT_PERIOD,
     filters: DEFAULT_FILTERS,
     onboardingComplete: false,
     sampleDataDismissed: false,
+    dashboardExcludedProjectIds: [],
     householdId: null,
     dataLoading: true,
   }
@@ -162,8 +199,9 @@ export const useAppStore = create<AppStore>()(
             getTransactions(householdId),
           ])
           // Loaded separately so missing tables never poison the main load.
-          const accounts = await getAccounts(householdId).catch(() => [])
-          const projects = await getProjects(householdId).catch(() => [])
+          const accounts         = await getAccounts(householdId).catch(() => [])
+          const projects         = await getProjects(householdId).catch(() => [])
+          const recurringIncomes = await getRecurringIncomes(householdId).catch(() => [])
 
           set({
             householdId,
@@ -172,9 +210,13 @@ export const useAppStore = create<AppStore>()(
             transactions,
             accounts,
             projects,
+            recurringIncomes,
             dataLoading: false,
             onboardingComplete: true,
           })
+
+          // Spawn any overdue recurring income entries after state is populated.
+          await get().spawnDueIncomes()
         } catch (err) {
           console.error('[store] loadHouseholdData failed:', err)
           set({ dataLoading: false })
@@ -502,6 +544,132 @@ export const useAppStore = create<AppStore>()(
         }
       },
 
+      // ── Recurring incomes ─────────────────────────────────────────────────
+      addRecurringIncome: async (data) => {
+        const ri: RecurringIncome = { ...data, id: uuidv4(), createdAt: new Date().toISOString() }
+
+        set((state) => ({ recurringIncomes: [ri, ...state.recurringIncomes] }))
+
+        const { householdId } = get()
+        if (householdId) {
+          try {
+            await insertRecurringIncome(householdId, ri)
+            // Immediately try to spawn if startDate <= today
+            await get().spawnDueIncomes()
+          } catch (err) {
+            console.error('[store] addRecurringIncome sync failed:', err)
+            set((state) => ({ recurringIncomes: state.recurringIncomes.filter((r) => r.id !== ri.id) }))
+          }
+        }
+      },
+
+      updateRecurringIncome: async (id, updates) => {
+        const prev = get().recurringIncomes.find((r) => r.id === id)
+
+        set((state) => ({
+          recurringIncomes: state.recurringIncomes.map((r) =>
+            r.id === id ? { ...r, ...updates } : r,
+          ),
+        }))
+
+        const { householdId } = get()
+        if (householdId) {
+          try {
+            await patchRecurringIncome(id, updates)
+          } catch (err) {
+            console.error('[store] updateRecurringIncome sync failed:', err)
+            if (prev) {
+              set((state) => ({
+                recurringIncomes: state.recurringIncomes.map((r) => (r.id === id ? prev : r)),
+              }))
+            }
+          }
+        }
+      },
+
+      deleteRecurringIncome: async (id) => {
+        const prev = get().recurringIncomes.find((r) => r.id === id)
+
+        set((state) => ({ recurringIncomes: state.recurringIncomes.filter((r) => r.id !== id) }))
+
+        const { householdId } = get()
+        if (householdId) {
+          try {
+            await removeRecurringIncome(id)
+          } catch (err) {
+            console.error('[store] deleteRecurringIncome sync failed:', err)
+            if (prev) {
+              set((state) => ({ recurringIncomes: [prev, ...state.recurringIncomes] }))
+            }
+          }
+        }
+      },
+
+      spawnDueIncomes: async () => {
+        const { recurringIncomes, householdId } = get()
+        const today = fnsFormat(new Date(), 'yyyy-MM-dd')
+
+        const newTransactions: Transaction[] = []
+        const nextDateUpdates = new Map<string, string>()  // riId → new nextDate
+
+        for (const ri of recurringIncomes) {
+          let nextDate = ri.nextDate
+          if (nextDate > today) continue
+
+          while (nextDate <= today) {
+            newTransactions.push({
+              id:                uuidv4(),
+              date:              nextDate,
+              merchant:          ri.name,
+              amount:            -(ri.amount),   // positive → negative (income convention)
+              accountName:       ri.accountName,
+              notes:             ri.notes,
+              ownerId:           ri.ownerId,
+              labelIds:          [],
+              reviewed:          false,
+              recurringIncomeId: ri.id,
+              createdAt:         new Date().toISOString(),
+            })
+            nextDate = computeNextDate(nextDate, ri.frequency)
+          }
+
+          nextDateUpdates.set(ri.id, nextDate)
+        }
+
+        if (newTransactions.length === 0) return
+
+        // Optimistic update
+        set((state) => ({
+          transactions: [...newTransactions, ...state.transactions],
+          recurringIncomes: state.recurringIncomes.map((r) => {
+            const nd = nextDateUpdates.get(r.id)
+            return nd ? { ...r, nextDate: nd } : r
+          }),
+        }))
+
+        if (!householdId) return
+
+        try {
+          await insertTransactions(householdId, newTransactions)
+          await Promise.all(
+            [...nextDateUpdates.entries()].map(([id, nextDate]) =>
+              patchRecurringIncome(id, { nextDate }),
+            ),
+          )
+        } catch (err) {
+          console.error('[store] spawnDueIncomes sync failed:', err)
+          // Revert optimistic state
+          const spawnedIds = new Set(newTransactions.map((t) => t.id))
+          set((state) => ({
+            transactions: state.transactions.filter((t) => !spawnedIds.has(t.id)),
+            recurringIncomes: state.recurringIncomes.map((r) => {
+              const original = recurringIncomes.find((o) => o.id === r.id)
+              return original ?? r
+            }),
+          }))
+        }
+      },
+
       // ── Users ─────────────────────────────────────────────────────────────
       updateUser: async (id, updates) => {
         set((state) => ({
@@ -534,6 +702,7 @@ export const useAppStore = create<AppStore>()(
       // ── Onboarding (local only) ───────────────────────────────────────────
       setOnboardingComplete: (value) => set({ onboardingComplete: value }),
       setSampleDataDismissed: (value) => set({ sampleDataDismissed: value }),
+      setDashboardExcludedProjectIds: (ids) => set({ dashboardExcludedProjectIds: ids }),
 
       // ── Reset to mock data ────────────────────────────────────────────────
       resetToMockData: async () => {
@@ -566,6 +735,7 @@ export const useAppStore = create<AppStore>()(
         activePeriod: state.activePeriod,
         onboardingComplete: state.onboardingComplete,
         sampleDataDismissed: state.sampleDataDismissed,
+        dashboardExcludedProjectIds: state.dashboardExcludedProjectIds,
       }),
     },
   ),

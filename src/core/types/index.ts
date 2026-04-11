@@ -47,6 +47,24 @@ export interface Transaction {
   projectId?: string // references Project.id — optional, one project per transaction
   reviewed: boolean
   createdAt: string  // ISO datetime string
+  recurringIncomeId?: string // set when spawned by a RecurringIncome; informational only
+}
+
+// ─── Recurring income ───────────────────────────────────────────────────────
+
+export type RecurringFrequency = 'weekly' | 'biweekly' | 'monthly' | 'semimonthly'
+
+export interface RecurringIncome {
+  id: string
+  name: string          // display label, e.g. "Company Paycheck"
+  amount: number        // positive; stored as negative in spawned transactions
+  ownerId: OwnerId
+  accountName: string
+  notes?: string
+  frequency: RecurringFrequency
+  startDate: string     // YYYY-MM-DD, first occurrence
+  nextDate: string      // YYYY-MM-DD, next date to spawn a transaction
+  createdAt: string
 }
 
 // ─── Period selection ───────────────────────────────────────────────────────
@@ -77,6 +95,7 @@ export interface TransactionFilters {
   labelIds: string[]       // empty = show all labels
   ownerId: OwnerId | 'all' // 'all' = show all owners
   reviewed: 'all' | 'reviewed' | 'unreviewed'
+  projectId: string | undefined // undefined = show all projects
 }
 
 // ─── Root application state ─────────────────────────────────────────────────
@@ -87,10 +106,12 @@ export interface AppState {
   labels: Label[]
   accounts: Account[]
   projects: Project[]
+  recurringIncomes: RecurringIncome[]
   activePeriod: ActivePeriod
   filters: TransactionFilters
   onboardingComplete: boolean
   sampleDataDismissed: boolean  // true once user dismisses the "sample data" banner
+  dashboardExcludedProjectIds: string[]  // project IDs hidden from all dashboard metrics
   // Cloud persistence
   householdId: string | null    // null until household is created (after onboarding)
   dataLoading: boolean          // true while loading household data from Supabase on mount

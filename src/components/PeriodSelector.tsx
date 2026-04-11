@@ -11,12 +11,9 @@ import type { PeriodPreset } from '@/core/types'
 import { useActivePeriod, useAppStore } from '@/core/store'
 
 const PRESETS: { value: PeriodPreset; label: string }[] = [
-  { value: 'all_time',     label: 'All Time' },
-  { value: 'this_month',   label: 'This Month' },
-  { value: 'last_month',   label: 'Last Month' },
-  { value: 'last_30_days', label: 'Last 30 Days' },
-  { value: 'last_90_days', label: 'Last 90 Days' },
-  { value: 'this_year',    label: 'This Year' },
+  { value: 'all_time',   label: 'All Time' },
+  { value: 'this_month', label: 'This Month' },
+  { value: 'last_month', label: 'Last Month' },
 ]
 
 export function PeriodSelector() {
@@ -26,7 +23,6 @@ export function PeriodSelector() {
 
   const [open, setOpen] = useState(false)
 
-  // Local draft state for the two date inputs — only committed on Apply
   const existingCustom = activePeriod.preset === 'custom' && activePeriod.custom
   const [dateA, setDateA] = useState(existingCustom ? activePeriod.custom!.start : '')
   const [dateB, setDateB] = useState(existingCustom ? activePeriod.custom!.end   : '')
@@ -37,7 +33,6 @@ export function PeriodSelector() {
 
   function handleApply() {
     if (!dateA || !dateB) return
-    // Swap if needed so start is always the earlier date
     const [start, end] = isAfter(parseISO(dateA), parseISO(dateB))
       ? [dateB, dateA]
       : [dateA, dateB]
@@ -50,9 +45,8 @@ export function PeriodSelector() {
       ? `${format(parseISO(activePeriod.custom.start), 'MMM d')} – ${format(parseISO(activePeriod.custom.end), 'MMM d')}`
       : 'Custom'
 
-  const pillBase =
-    'flex-shrink-0 text-xs px-3 py-1.5 rounded-full border transition-colors whitespace-nowrap'
-  const pillActive   = 'bg-primary text-primary-foreground border-primary'
+  const pillBase    = 'flex-shrink-0 text-xs px-3 py-1.5 rounded-full border transition-colors whitespace-nowrap'
+  const pillActive  = 'bg-primary text-primary-foreground border-primary'
   const pillInactive = 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'
 
   return (
@@ -67,44 +61,23 @@ export function PeriodSelector() {
         </button>
       ))}
 
-      {/* Custom date range */}
       <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger
-          className={cn(
-            pillBase,
-            activePeriod.preset === 'custom' ? pillActive : pillInactive
-          )}
-        >
+        <PopoverTrigger className={cn(pillBase, activePeriod.preset === 'custom' ? pillActive : pillInactive)}>
           {customLabel}
         </PopoverTrigger>
         <PopoverContent className="w-64 p-3 space-y-3" align="start">
           <div className="space-y-1.5">
             <Label className="text-xs">First date</Label>
-            <Input
-              type="date"
-              value={dateA}
-              max={today}
-              onChange={(e) => setDateA(e.target.value)}
-            />
+            <Input type="date" value={dateA} max={today} onChange={(e) => setDateA(e.target.value)} />
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs">Second date</Label>
-            <Input
-              type="date"
-              value={dateB}
-              max={today}
-              onChange={(e) => setDateB(e.target.value)}
-            />
+            <Input type="date" value={dateB} max={today} onChange={(e) => setDateB(e.target.value)} />
           </div>
           <p className="text-xs text-muted-foreground">
             The earlier date becomes the start, the later becomes the end.
           </p>
-          <Button
-            size="sm"
-            className="w-full"
-            disabled={!dateA || !dateB}
-            onClick={handleApply}
-          >
+          <Button size="sm" className="w-full" disabled={!dateA || !dateB} onClick={handleApply}>
             Apply
           </Button>
         </PopoverContent>

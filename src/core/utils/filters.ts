@@ -15,7 +15,7 @@ export function filterTransactions(
   filters: TransactionFilters,
   dateRange: DateRange
 ): Transaction[] {
-  const { search, labelIds, ownerId, reviewed } = filters
+  const { search, labelIds, ownerId, reviewed, projectId } = filters
   const searchLower = search.toLowerCase()
 
   return transactions.filter((tx) => {
@@ -46,6 +46,9 @@ export function filterTransactions(
     // ── Reviewed status ───────────────────────────────────────────────────
     if (reviewed === 'reviewed'   && !tx.reviewed) return false
     if (reviewed === 'unreviewed' &&  tx.reviewed) return false
+
+    // ── Project ───────────────────────────────────────────────────────────
+    if (projectId !== undefined && tx.projectId !== projectId) return false
 
     return true
   })

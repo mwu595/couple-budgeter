@@ -1,112 +1,101 @@
 # Changelog
 
-All notable changes to Money Tracker 2026 are recorded here.
-Format: `[version] — date — summary`
+`[version] — date` • What shipped and why it matters.
 
 ---
 
-## [Unreleased]
+## [0.5.0] — 2026-04-10
 
-Changes in active development toward 1.0.0. Moved to a versioned section on release.
+Money now has a whole new tab for income, a pretty Sankey chart, and strong opinions about where things belong.
+
+- **Income page** (`/income`): dedicated home for income entries — form, date-grouped feed, period selector, owner filter
+- **Recurring income manager**: tile grid of schedules (Weekly / Bi-weekly / Semi-monthly / Monthly); auto-spawns missed entries on load; editing only affects future, deleting only stops future
+- **Cashflow Sankey chart** (Dashboard): income → spending categories waterfall; graceful no-income fallback; includes a "Potential Savings" node when you're not burning it all
+- **Expenses rename**: "Transactions" is now "Expenses" everywhere except the URL, which doesn't care
+- **Income hidden from Expenses page**: income entries mind their own business and stay out of the expense list
+- **Income edit modal**: "Mark as reviewed" checkbox, same as Expenses
+- **Reviewed checkmark on income rows**: green ✓ beside the amount on both Income page and Dashboard
+- **Read-only income on Dashboard**: clicking an income row shows a toast instead of opening an edit form; page name in the message is dynamic
+- **No tags or projects on income rows**: label picker and project picker hidden for income entries
+- **Rainbow gradient on income rows**: deeper opacity (0.15) across all surfaces
+- **Amount signs**: income shows `+`, expenses show `−`; income rows get the rainbow treatment on Expenses and Dashboard too
+- **Settings note**: "Account connection coming soon." while Plaid API quota is still limited
+- **Tags page cleanup**: project summary tiles removed; list view is enough
 
 ---
 
 ## [0.4.0] — 2026-04-10
 
-### Added
-- **Exclude Projects filter** (Dashboard): dropdown in the filter bar lets users hide specific projects from all dashboard metrics; "No project" option hides untagged transactions; selection persists across sessions and refreshes
-- **Page-level owner filter** (Dashboard): All / Person 1 / Person 2 / Shared pills now apply to every chart, card, and transaction list on the page — not just the pie chart
-- **"Granularity:" label** on the Spending line chart, clarifying the Day / Week / Month / Year selector
-- **Owner hint** on the Transactions filter bar: triangle alert icon with "The owner represents who this expense applies to, not who paid for it."
+The Dashboard got a proper filter bar and stopped pretending one pie chart controls everything.
 
-### Changed
-- **Unified Dashboard filter bar**: all filters (period, owner, projects) merged into a single horizontally-scrollable row with consistent pill styling and thin separators between groups
-- **Period presets** reduced to three options: All Time, This Month, Last Month (+ Custom) — Last 30 Days, Last 90 Days, This Year removed
-- **Spending line chart** now defaults to Daily granularity instead of auto-selecting based on date range
-- **`PeriodSelector`** restored to a simple standalone component (no slot props); used identically on the Transactions page
-
-### Removed
-- Owner filter and project filter controls from inside the pie chart card
-- Amount / Count view toggle from the pie chart (Amount is now the only view)
+- **Exclude Projects filter**: hide specific projects (or untagged transactions) from all dashboard metrics; persists across sessions
+- **Page-level owner filter**: All / Person 1 / Person 2 / Shared pills now gate every chart, card, and list on the page
+- **Unified filter bar**: period + owner + projects in one horizontally-scrollable row with pill styling
+- **Period presets trimmed**: All Time, This Month, Last Month, Custom — the rest were clutter
+- **Line chart defaults to Daily granularity**; "Granularity:" label added for clarity
+- Removed: owner + project controls from inside pie chart card; Amount/Count view toggle (Amount only now)
 
 ---
 
 ## [0.3.1] — 2026-04-06
 
-### Fixed
-- Bulk owner assignment now reflects the common owner across all selected transactions instead of always defaulting to "Shared"
-- Project tags no longer disappear when entering bulk-select mode — a static colored badge is shown in place of the interactive picker
-- `OwnerPicker` and `ProjectPicker` now close immediately on selection, making bulk assignment visually clear
-- Bulk label assignment correctly computes the intersection of labels across selected transactions, enabling true toggle behavior (click to add, click again to remove)
+Bulk-select stopped lying about which labels and owners were actually shared.
 
-### Changed
-- Bulk action controls moved from a fixed bottom bar to the page header — Delete on the left, Labels/Project/Owner/Cancel on the right
-- Delete and Cancel positions swapped: Delete is now on the far left, Cancel on the far right
+- Bulk owner picker now shows the real common owner instead of always defaulting to Shared
+- Project badge survives bulk-select mode (static colored dot instead of vanishing)
+- `OwnerPicker` and `ProjectPicker` close on selection — no more phantom dropdowns
+- Bulk label toggle computes the true intersection so clicking adds and clicking again removes
 
 ---
 
 ## [0.3.0] — 2026-04-06
 
-### Added
-- **Bulk actions in header**: when entering select mode, the Transactions page header transforms to show bulk action controls inline (Labels, Project, Owner, Delete, Cancel)
-- **Bulk project assignment**: assign or remove a project from all selected transactions at once
-- **Project summary strip on Projects page**: horizontal scrollable row of project cards at the top of the Projects page, sorted newest first
-- Toggle behavior for bulk label and project assignment: selecting an option that's already applied to all selected transactions removes it
+Bulk actions grew up and moved into the header where they belong.
 
-### Changed
-- Project summary cards removed from the Dashboard page
-- Bulk action bottom bar (`BulkActionBar` component) removed entirely
+- **Bulk actions in header**: select mode transforms the page header into a command bar (Labels, Project, Owner, Delete, Cancel)
+- **Bulk project assignment**: slap a project on a hundred transactions at once
+- **Project summary strip** on Projects page: horizontal scrollable cards sorted newest first
+- Toggle behavior: bulk-applying something already applied to all selected rows removes it
+- Removed: `BulkActionBar` bottom sheet; project summary cards from Dashboard
 
 ---
 
 ## [0.2.0] — 2026-04-05
 
-### Added
-- **Projects feature**: create named projects with color, icon, date range, and optional budget
-- `/projects` page with project list (edit, delete) and a summary card per project
-- Inline project assignment on each transaction row via `ProjectPicker`
-- `Project` type added to `core/types/index.ts`
-- `projectId` field added to `Transaction` type
-- `lib/db/projects.ts` — Supabase DB helpers for projects
-- `supabase/004_projects.sql` — RLS-secured projects table and migration
+Projects landed. Now your "bathroom reno" can have its own color and its own shame spiral.
 
-### Changed
-- Nav bar updated to include Projects tab
+- **Projects feature**: named projects with color, icon, date range, optional budget
+- `/projects` page with list, edit, delete, and per-project summary card
+- Inline project picker on every transaction row
+- `Project` type, `projectId` on `Transaction`, `lib/db/projects.ts`, `supabase/004_projects.sql`
+- Nav bar updated with Projects tab
 
 ---
 
 ## [0.1.0] — 2026-03-31
 
-### Added — Core App (Steps 0–7)
+The whole thing. Zero to working couples budget tracker in one shot.
 
-- **Foundation**: Next.js 15, TypeScript strict, Tailwind CSS v4, Base UI + shadcn/ui, Zustand, Recharts
-- **Transaction feed**: add, edit, delete transactions; search; filter by label/owner/reviewed; date grouping
-- **Label system**: create/edit/delete labels with color + emoji; inline multi-label assignment
-- **Ownership**: assign transactions to User A, User B, or Shared; inline picker; user profile setup
-- **Analytics dashboard**: total spend, by-owner breakdown, top labels, avg daily spend; pie chart; line chart
-- **Period selector**: presets (All Time, This Month, Last Month, Last 30/90 Days, This Year) + custom range
-- **Bulk select**: select multiple transactions; bulk-assign label, owner, reviewed; bulk delete
-- **CSV export**
-- **Onboarding**: first-launch profile setup flow
-- **Sample data**: realistic mock transactions, dismissible banner
-- **PWA**: manifest, Apple meta tags, installable to home screen
-- **Mobile + desktop layout**: bottom tab nav (mobile), sidebar (desktop)
+**Core app (Steps 0–7)**
+- Next.js 15, TypeScript strict, Tailwind v4, shadcn/ui, Zustand, Recharts
+- Transaction feed: add, edit, delete, search, filter by label/owner/reviewed, date grouping
+- Label system: color + emoji, inline multi-label assignment
+- Ownership: User A / User B / Shared, inline picker, profile setup
+- Analytics dashboard: total spend, by-owner, top labels, avg daily; pie + line charts
+- Period selector: presets + custom range
+- Bulk select: bulk-assign label/owner/reviewed, bulk delete
+- CSV export, onboarding flow, sample data, PWA manifest, mobile + desktop layout
 
-### Added — Cloud Backend (Steps 8–9)
-
-- **Supabase Auth**: email/password sign-up, sign-in, session management
-- **Households**: two-user shared workspace; invite via email link
-- **Cloud database**: PostgreSQL via Supabase; all data synced in background
-- **Optimistic updates**: store actions update locally first, sync to Supabase, revert on error
-- **RLS**: Row Level Security policies scoped to household
-- **Plaid integration** (sandbox): link-token, token exchange, account list, transaction sync endpoints
+**Cloud backend (Steps 8–9)**
+- Supabase Auth: email/password sign-up, sign-in, session management
+- Households: two-user shared workspace, invite via email link
+- Cloud PostgreSQL, optimistic updates, RLS scoped to household
+- Plaid integration (sandbox): link-token, token exchange, account list, transaction sync
 
 ---
 
-## Versioning Convention
+## Versioning
 
-- `0.x.0` — new features in pre-release development
-- `0.x.y` — bug fixes and polish during pre-release
-- `1.0.0` — first public MVP release
-- `1.x.0` — post-MVP features
-- `2.0.0` — breaking changes to data model or auth
+- `0.x.0` — new features
+- `0.x.y` — fixes and polish
+- `1.0.0` — first public release

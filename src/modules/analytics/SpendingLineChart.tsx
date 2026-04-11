@@ -4,7 +4,6 @@ import { useState, useMemo, useEffect } from 'react'
 import {
   format,
   parseISO,
-  differenceInCalendarDays,
   startOfWeek,
 } from 'date-fns'
 import {
@@ -32,14 +31,8 @@ const GRANULARITY_OPTIONS: { value: Granularity; label: string }[] = [
   { value: 'yearly',  label: 'Year' },
 ]
 
-/** Pick a sensible default based on how many days the range spans. */
-function autoGranularity(dateRange: DateRange): Granularity {
-  const days =
-    differenceInCalendarDays(parseISO(dateRange.end), parseISO(dateRange.start)) + 1
-  if (days <= 60)  return 'daily'
-  if (days <= 180) return 'weekly'
-  if (days <= 730) return 'monthly'
-  return 'yearly'
+function autoGranularity(_dateRange: DateRange): Granularity {
+  return 'daily'
 }
 
 /** Return a display label and a lexicographically-sortable key for a given date + granularity. */
@@ -163,6 +156,7 @@ export function SpendingLineChart({ transactions, users, dateRange }: SpendingLi
 
         {/* Manual granularity selector */}
         <div className="flex items-center gap-1 flex-shrink-0">
+          <span className="text-[11px] text-muted-foreground mr-0.5">Granularity:</span>
           {GRANULARITY_OPTIONS.map(({ value, label }) => (
             <button
               key={value}

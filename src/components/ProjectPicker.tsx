@@ -28,11 +28,15 @@ export function ProjectPicker({ projects, selectedId, onChange, triggerClassName
       >
         {selected ? (
           <>
-            <span
-              className="w-2 h-2 rounded-full flex-shrink-0"
-              style={{ backgroundColor: selected.color }}
-              aria-hidden="true"
-            />
+            {selected.icon ? (
+              <span aria-hidden="true">{selected.icon}</span>
+            ) : (
+              <span
+                className="w-2 h-2 rounded-full flex-shrink-0"
+                style={{ backgroundColor: selected.color }}
+                aria-hidden="true"
+              />
+            )}
             <span className="text-muted-foreground max-w-[80px] truncate">{selected.name}</span>
           </>
         ) : (

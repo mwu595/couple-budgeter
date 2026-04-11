@@ -45,3 +45,9 @@ public/workbox-*.js
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# local-only documentation (never pushed to remote)
+CLAUDE.md
+PRD.md
+BUILD_PLAN.md
+ARCHITECTURE.md

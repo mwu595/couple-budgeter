@@ -1,20 +1,21 @@
 'use client'
 
-import { Search, X } from 'lucide-react'
+import { Search, X, TriangleAlert } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
-import type { User, OwnerId, Label } from '@/core/types'
+import type { User, OwnerId, Label, Project } from '@/core/types'
 import { useFilters, useAppStore } from '@/core/store'
 
 interface TransactionFiltersProps {
   users: [User, User]
   labels: Label[]
+  projects: Project[]
 }
 
 type OwnerOption = { value: OwnerId | 'all'; label: string; emoji?: string }
 type ReviewedOption = { value: 'all' | 'reviewed' | 'unreviewed'; label: string }
 
-export function TransactionFilters({ users, labels }: TransactionFiltersProps) {
+export function TransactionFilters({ users, labels, projects }: TransactionFiltersProps) {
   const filters = useFilters()
   // Use individual stable selectors to avoid object-identity re-renders
   const setFilters   = useAppStore((s) => s.setFilters)
@@ -37,7 +38,8 @@ export function TransactionFilters({ users, labels }: TransactionFiltersProps) {
     filters.search !== '' ||
     filters.ownerId !== 'all' ||
     filters.reviewed !== 'all' ||
-    filters.labelIds.length > 0
+    filters.labelIds.length > 0 ||
+    filters.projectId !== undefined
 
   return (
     <div className="space-y-2.5 px-4 py-3 border-b bg-background">
@@ -63,7 +65,8 @@ export function TransactionFilters({ users, labels }: TransactionFiltersProps) {
       </div>
 
       {/* Owner filter */}
-      <div className="flex items-center gap-1.5 flex-wrap">
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="flex items-center gap-1.5 flex-wrap">
         {ownerOptions.map(({ value, label, emoji }) => (
           <button
             key={value}
@@ -79,6 +82,11 @@ export function TransactionFilters({ users, labels }: TransactionFiltersProps) {
             {label}
           </button>
         ))}
+        </div>
+        <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+          <TriangleAlert className="w-3 h-3 shrink-0" />
+          The owner represents who this expense applies to, not who paid for it.
+        </span>
       </div>
 
       {/* Reviewed filter + clear */}
@@ -141,6 +149,45 @@ export function TransactionFilters({ users, labels }: TransactionFiltersProps) {
               >
                 {label.icon && <span className="mr-0.5">{label.icon}</span>}
                 {label.name}
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Project filter chips */}
+      {projects.length > 0 && (
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {projects.map((project) => {
+            const active = filters.projectId === project.id
+            return (
+              <button
+                key={project.id}
+                onClick={() => setFilters({ projectId: active ? undefined : project.id })}
+                className={cn(
+                  'inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border transition-all',
+                  active ? 'ring-2 ring-offset-1' : 'opacity-60 hover:opacity-100'
+                )}
+                style={
+                  {
+                    backgroundColor: `${project.color}20`,
+                    color: project.color,
+                    borderColor: `${project.color}40`,
+                    '--tw-ring-color': active ? project.color : undefined,
+                  } as React.CSSProperties
+                }
+                aria-pressed={active}
+              >
+                {project.icon ? (
+                  <span aria-hidden="true">{project.icon}</span>
+                ) : (
+                  <span
+                    className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: project.color }}
+                    aria-hidden="true"
+                  />
+                )}
+                {project.name}
               </button>
             )
           })}

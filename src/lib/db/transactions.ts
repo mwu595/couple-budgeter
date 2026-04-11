@@ -11,6 +11,7 @@ interface TxRow {
   notes: string | null
   owner_id: string
   project_id: string | null
+  recurring_income_id: string | null
   reviewed: boolean
   created_at: string
   transaction_labels: { label_id: string }[]
@@ -27,6 +28,7 @@ function mapRow(row: TxRow): Transaction {
     ownerId: row.owner_id as Transaction['ownerId'],
     labelIds: row.transaction_labels.map((tl) => tl.label_id),
     projectId: row.project_id ?? undefined,
+    recurringIncomeId: row.recurring_income_id ?? undefined,
     reviewed: row.reviewed,
     createdAt: row.created_at,
   }
@@ -61,6 +63,7 @@ export async function insertTransaction(
     owner_id: tx.ownerId,
     reviewed: tx.reviewed,
     created_at: tx.createdAt,
+    recurring_income_id: tx.recurringIncomeId ?? null,
   })
   if (error) throw error
 
@@ -91,6 +94,7 @@ export async function insertTransactions(
       owner_id: tx.ownerId,
       reviewed: tx.reviewed,
       created_at: tx.createdAt,
+      recurring_income_id: tx.recurringIncomeId ?? null,
     })),
   )
   if (error) throw error

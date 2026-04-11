@@ -46,9 +46,9 @@ export default function TransactionsPage() {
   const updateTransaction      = useAppStore((s) => s.updateTransaction)
   const bulkDeleteTransactions = useAppStore((s) => s.bulkDeleteTransactions)
 
-  const dateRange = getDateRangeForPeriod(activePeriod)
-  const filtered  = filterTransactions(transactions, filters, dateRange)
-  const sorted    = sortTransactions(filtered)
+  const dateRange  = getDateRangeForPeriod(activePeriod)
+  const filtered   = filterTransactions(transactions, filters, dateRange).filter((tx) => tx.amount > 0)
+  const sorted     = sortTransactions(filtered)
 
   const editingTransaction = editingId
     ? transactions.find((tx) => tx.id === editingId)
@@ -225,7 +225,7 @@ export default function TransactionsPage() {
         // ── Normal header ──────────────────────────────────────────────
         <div className="flex items-center justify-between px-4 py-4 border-b bg-background sticky top-0 z-20">
           <div>
-            <h1 className="text-xl font-bold tracking-tight">Transactions</h1>
+            <h1 className="text-xl font-bold tracking-tight">Expenses</h1>
             <p className="text-xs text-muted-foreground mt-0.5">
               {sorted.length !== transactions.length
                 ? `${sorted.length} of ${transactions.length}`
@@ -263,7 +263,7 @@ export default function TransactionsPage() {
       <PeriodSelector />
 
       {/* ── Filters ─────────────────────────────────────────────────────── */}
-      <TransactionFilters users={users} labels={labels} />
+      <TransactionFilters users={users} labels={labels} projects={projects} />
 
       {/* ── Feed ────────────────────────────────────────────────────────── */}
       <div className="flex-1 overflow-auto">

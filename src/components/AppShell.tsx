@@ -7,7 +7,7 @@ import { SampleDataBanner } from '@/components/SampleDataBanner'
 import { createClient } from '@/lib/supabase/client'
 
 const SHELL_LESS_PATHS = ['/login', '/signup']
-const PROTECTED_PATHS = ['/dashboard', '/transactions', '/labels', '/projects', '/settings', '/invite']
+const PROTECTED_PATHS = ['/dashboard', '/transactions', '/income', '/tags', '/settings', '/invite']
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()

@@ -19,10 +19,15 @@ export function PlaidLinkButton({ onSuccess }: PlaidLinkButtonProps) {
     fetch('/api/plaid/link-token', { method: 'POST' })
       .then((r) => r.json())
       .then((data: { linkToken?: string; error?: string }) => {
-        if (data.linkToken) setLinkToken(data.linkToken)
-        else setError(data.error ?? 'Failed to initialize Plaid')
+        if (data.linkToken) {
+          // Persist the token so the OAuth callback page can resume the flow
+          sessionStorage.setItem('plaid_link_token', data.linkToken)
+          setLinkToken(data.linkToken)
+        } else {
+          setError(data.error ?? 'Failed to initialize Plaid')
+        }
       })
-      .catch(() => setError('Failed to initialize Plaid'))
+      .catch((e: unknown) => setError(String(e)))
       .finally(() => setFetching(false))
   }, [])
 

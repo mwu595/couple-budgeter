@@ -49,14 +49,18 @@ export function TransactionRow({
     }
   }
 
+  const isIncome = amount < 0
+  const rainbowGradient = 'linear-gradient(to right, rgba(239,68,68,0.15), rgba(249,115,22,0.15), rgba(234,179,8,0.15), rgba(34,197,94,0.15), rgba(59,130,246,0.15), rgba(139,92,246,0.15))'
+
   return (
     <div
       role="button"
       tabIndex={0}
       className={cn(
         'w-full flex items-start gap-3 py-3 px-4 text-left transition-colors cursor-pointer group',
-        selected ? 'bg-primary/10' : 'hover:bg-accent',
+        selected ? 'bg-primary/10' : 'hover:brightness-95',
       )}
+      style={isIncome && !selected ? { background: rainbowGradient } : undefined}
       onClick={handleClick}
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleClick() }}
       aria-label={selectionMode ? `${selected ? 'Deselect' : 'Select'} ${merchant}` : `Edit transaction: ${merchant}`}
@@ -98,10 +102,10 @@ export function TransactionRow({
             <span
               className={cn(
                 'font-semibold tabular-nums text-sm',
-                amount < 0 ? 'text-primary' : 'text-foreground'
+                amount < 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground'
               )}
             >
-              {amount < 0 ? '−' : ''}
+              {amount < 0 ? '+' : '−'}
               {formatCurrency(Math.abs(amount))}
             </span>
           </div>
@@ -113,12 +117,12 @@ export function TransactionRow({
             {format(parseISO(date), 'MMM d')} · {accountName}
           </span>
 
-          {txLabels.map((label) => (
+          {!isIncome && txLabels.map((label) => (
             <LabelBadge key={label.id} label={label} size="xs" />
           ))}
 
-          {/* Inline label picker — hidden in selection mode */}
-          {!selectionMode && (
+          {/* Inline label picker — hidden in selection mode and for income rows */}
+          {!isIncome && !selectionMode && (
             <LabelPicker
               labels={labels}
               selectedIds={labelIds}
@@ -128,8 +132,8 @@ export function TransactionRow({
             />
           )}
 
-          {/* Project: static badge in selection mode, interactive picker otherwise */}
-          {selectionMode ? (
+          {/* Project: hidden for income rows */}
+          {!isIncome && (selectionMode ? (
             projectId && (() => {
               const proj = projects.find((p) => p.id === projectId)
               return proj ? (
@@ -149,10 +153,13 @@ export function TransactionRow({
                 projects={projects}
                 selectedId={projectId}
                 onChange={(pid) => updateTransaction(id, { projectId: pid })}
-                triggerClassName="md:opacity-0 md:group-hover:opacity-100 focus:opacity-100 transition-opacity px-1 py-0.5 text-muted-foreground hover:text-foreground"
+                triggerClassName={cn(
+                  'px-1 py-0.5 text-muted-foreground hover:text-foreground transition-opacity',
+                  !projectId && 'md:opacity-0 md:group-hover:opacity-100 focus:opacity-100',
+                )}
               />
             )
-          )}
+          ))}
         </div>
       </div>
     </div>

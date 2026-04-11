@@ -25,6 +25,15 @@ export async function POST() {
 
   if (!items?.length) return NextResponse.json({ added: 0, message: 'No connected accounts' })
 
+  // Fetch the permanent ledger of every plaid_transaction_id ever imported
+  // for this household. This prevents re-importing transactions the user deleted.
+  const { data: seenRows } = await service
+    .from('plaid_seen_ids')
+    .select('plaid_transaction_id')
+    .eq('household_id', member.household_id)
+
+  const seenIds = new Set((seenRows ?? []).map((r) => r.plaid_transaction_id))
+
   // Fetch account name map for display
   const { data: accountRows } = await service
     .from('plaid_accounts')
@@ -43,7 +52,8 @@ export async function POST() {
   for (const item of items) {
     let cursor    = item.cursor ?? undefined
     let hasMore   = true
-    const toInsert: Record<string, unknown>[] = []
+    const toInsert:  Record<string, unknown>[] = []
+    const newSeenIds: string[] = []
 
     // Page through all available updates
     while (hasMore) {
@@ -58,6 +68,13 @@ export async function POST() {
         // Skip pending transactions — they haven't settled yet
         if (tx.pending) continue
 
+        // Record in the seen ledger regardless of whether we insert —
+        // this marks it permanently so it won't come back after deletion
+        newSeenIds.push(tx.transaction_id)
+
+        // Skip if this transaction has ever been imported before
+        if (seenIds.has(tx.transaction_id)) continue
+
         toInsert.push({
           id:                   uuidv4(),
           household_id:         member.household_id,
@@ -67,7 +84,7 @@ export async function POST() {
           amount:               tx.amount,
           account_name:         accountNameMap.get(tx.account_id) ?? tx.account_id,
           notes:                null,
-          owner_id:             member.slot,  // assign to the user who triggered the sync
+          owner_id:             member.slot,
           reviewed:             false,
           plaid_transaction_id: tx.transaction_id,
         })
@@ -77,7 +94,7 @@ export async function POST() {
       hasMore = has_more
     }
 
-    // Upsert — skip any transaction already imported (idempotent)
+    // Insert new transactions first
     if (toInsert.length > 0) {
       const { data: inserted } = await service
         .from('transactions')
@@ -87,7 +104,20 @@ export async function POST() {
       totalAdded += inserted?.length ?? 0
     }
 
-    // Save updated cursor so next sync only fetches new data
+    // Write the full batch of seen IDs to the permanent ledger (upsert, idempotent)
+    if (newSeenIds.length > 0) {
+      await service
+        .from('plaid_seen_ids')
+        .upsert(
+          newSeenIds.map((pid) => ({
+            household_id:         member.household_id,
+            plaid_transaction_id: pid,
+          })),
+          { onConflict: 'household_id,plaid_transaction_id', ignoreDuplicates: true },
+        )
+    }
+
+    // Save updated cursor so next sync only fetches new data from Plaid
     await service
       .from('plaid_items')
       .update({ cursor })

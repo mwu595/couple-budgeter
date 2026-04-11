@@ -1,13 +1,14 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { RotateCcw, LogOut, UserPlus, RefreshCw } from 'lucide-react'
+import { RotateCcw, LogOut, UserPlus, RefreshCw, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { useUsers, useAppStore } from '@/core/store'
 import { UserProfileForm } from '@/modules/ownership'
 import { PlaidLinkButton } from '@/components/PlaidLink'
+import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { createClient } from '@/lib/supabase/client'
 
 interface PlaidAccount {
@@ -22,9 +23,11 @@ export default function SettingsPage() {
   const resetToMockData = useAppStore((s) => s.resetToMockData)
   const loadHouseholdData = useAppStore((s) => s.loadHouseholdData)
 
-  const [institutions, setInstitutions] = useState<Institution[]>([])
-  const [syncing,      setSyncing]      = useState(false)
-  const [syncMsg,      setSyncMsg]      = useState<string | null>(null)
+  const [institutions,   setInstitutions]   = useState<Institution[]>([])
+  const [syncing,        setSyncing]        = useState(false)
+  const [syncMsg,        setSyncMsg]        = useState<string | null>(null)
+  const [removingId,     setRemovingId]     = useState<string | null>(null)
+  const [confirmRemove,  setConfirmRemove]  = useState<Institution | null>(null)
 
   const fetchAccounts = useCallback(() => {
     fetch('/api/plaid/accounts')
@@ -47,6 +50,18 @@ export default function SettingsPage() {
       setSyncMsg('Sync failed — please try again')
     } finally {
       setSyncing(false)
+    }
+  }
+
+  async function handleRemove(inst: Institution) {
+    setRemovingId(inst.id)
+    setConfirmRemove(null)
+    try {
+      await fetch(`/api/plaid/items/${inst.id}`, { method: 'DELETE' })
+      fetchAccounts()
+      setSyncMsg(null)
+    } finally {
+      setRemovingId(null)
     }
   }
 
@@ -103,7 +118,18 @@ export default function SettingsPage() {
             <div className="space-y-3">
               {institutions.map((inst) => (
                 <div key={inst.id} className="border rounded-xl p-4 space-y-2">
-                  <p className="text-sm font-medium">{inst.institutionName}</p>
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium">{inst.institutionName}</p>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-destructive hover:text-destructive hover:bg-destructive/10 h-7 px-2"
+                      disabled={removingId === inst.id}
+                      onClick={() => setConfirmRemove(inst)}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </Button>
+                  </div>
                   <ul className="space-y-1">
                     {inst.accounts.map((a) => (
                       <li key={a.accountId} className="text-xs text-muted-foreground flex justify-between">
@@ -124,6 +150,10 @@ export default function SettingsPage() {
               </div>
             </div>
           )}
+
+          <p className="text-xs text-muted-foreground">
+            Account connection coming soon.
+          </p>
 
           <PlaidLinkButton onSuccess={() => { fetchAccounts(); setSyncMsg(null) }} />
         </section>
@@ -193,6 +223,16 @@ export default function SettingsPage() {
           </div>
         </section>
       </div>
+
+      <ConfirmDialog
+        open={confirmRemove !== null}
+        title={`Remove ${confirmRemove?.institutionName ?? 'account'}?`}
+        description="This disconnects the bank connection and removes all linked accounts. Imported transactions are kept."
+        confirmLabel="Remove"
+        destructive
+        onConfirm={() => confirmRemove && handleRemove(confirmRemove)}
+        onCancel={() => setConfirmRemove(null)}
+      />
     </div>
   )
 }

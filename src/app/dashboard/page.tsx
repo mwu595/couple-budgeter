@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useCallback } from 'react'
-import { X, ArrowRight } from 'lucide-react'
+import { useState, useCallback, useRef } from 'react'
+import { format, parseISO, isAfter } from 'date-fns'
+import { X, ArrowRight, ChevronDown, Check } from 'lucide-react'
 import Link from 'next/link'
 import {
   useTransactions,
@@ -9,64 +10,123 @@ import {
   useUsers,
   useActivePeriod,
   useProjects,
+  useDashboardExcludedProjectIds,
+  useAppStore,
 } from '@/core/store'
 import { filterTransactions, sortTransactions, getDateRangeForPeriod, UNLABELED_LABEL } from '@/core/utils'
-import type { OwnerId } from '@/core/types'
+import type { OwnerId, PeriodPreset } from '@/core/types'
 import {
   useAnalytics,
   SummaryCards,
   SpendingPieChart,
   SpendingLineChart,
+  CashflowChart,
 } from '@/modules/analytics'
 import { TransactionFeed, TransactionForm } from '@/modules/transactions'
-import { PeriodSelector } from '@/components/PeriodSelector'
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { cn } from '@/lib/utils'
+import { NAV_LINKS } from '@/components/AppNav'
+
+// Sentinel used in excludedProjectIds to represent transactions with no project assigned
+const NO_PROJECT_ID = '__no_project__'
+
+const PERIOD_PRESETS: { value: PeriodPreset; label: string }[] = [
+  { value: 'all_time',   label: 'All Time' },
+  { value: 'this_month', label: 'This Month' },
+  { value: 'last_month', label: 'Last Month' },
+]
 
 export default function DashboardPage() {
   // Local label filter — clicking pie slices toggles them; does NOT touch global store filters
-  const [activeLabelIds,  setActiveLabelIds]  = useState<string[]>([])
-  // Owner filter for the pie chart only
-  const [pieOwnerFilter,  setPieOwnerFilter]  = useState<OwnerId | 'all'>('all')
-  const [editingId,     setEditingId]     = useState<string | null>(null)
+  const [activeLabelIds, setActiveLabelIds] = useState<string[]>([])
+  // Page-level owner filter — affects all charts, cards, and the transaction list
+  const [ownerFilter, setOwnerFilter] = useState<OwnerId | 'all'>('all')
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [incomeMsg, setIncomeMsg] = useState(false)
+  const incomeMsgTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const transactions = useTransactions()
-  const labels       = useLabels()
-  const users        = useUsers()
-  const projects     = useProjects()
-  const activePeriod = useActivePeriod()
+  const incomePageLabel = NAV_LINKS.find((l) => l.href === '/income')?.label ?? 'Income'
+
+  const transactions          = useTransactions()
+  const labels                = useLabels()
+  const users                 = useUsers()
+  const projects              = useProjects()
+  const activePeriod          = useActivePeriod()
+  const setActivePeriod       = useAppStore((s) => s.setActivePeriod)
+  const excludedProjectIds    = useDashboardExcludedProjectIds()
+  const setExcludedProjectIds = useAppStore((s) => s.setDashboardExcludedProjectIds)
+
+  // Custom date range popover state
+  const today = format(new Date(), 'yyyy-MM-dd')
+  const existingCustom = activePeriod.preset === 'custom' && activePeriod.custom
+  const [customOpen, setCustomOpen] = useState(false)
+  const [dateA, setDateA] = useState(existingCustom ? activePeriod.custom!.start : '')
+  const [dateB, setDateB] = useState(existingCustom ? activePeriod.custom!.end   : '')
+
+  function handleApplyCustom() {
+    if (!dateA || !dateB) return
+    const [start, end] = isAfter(parseISO(dateA), parseISO(dateB))
+      ? [dateB, dateA]
+      : [dateA, dateB]
+    setActivePeriod({ preset: 'custom', custom: { start, end } })
+    setCustomOpen(false)
+  }
+
+  const customLabel =
+    activePeriod.preset === 'custom' && activePeriod.custom
+      ? `${format(parseISO(activePeriod.custom.start), 'MMM d')} – ${format(parseISO(activePeriod.custom.end), 'MMM d')}`
+      : 'Custom'
 
   const dateRange = getDateRangeForPeriod(activePeriod)
 
-  // All transactions in the selected period — used for analytics
+  // All transactions in the selected period — used as the base set
   const periodTransactions = filterTransactions(
     transactions,
-    { search: '', labelIds: [], ownerId: 'all', reviewed: 'all' },
+    { search: '', labelIds: [], ownerId: 'all', reviewed: 'all', projectId: undefined },
     dateRange
   )
 
-  const analytics = useAnalytics({ transactions: periodTransactions, labels, users })
+  // Apply page-level filters: excluded projects + owner — affects all downstream metrics
+  const visibleTransactions = periodTransactions.filter((tx) => {
+    if (tx.projectId && excludedProjectIds.includes(tx.projectId)) return false
+    if (!tx.projectId && excludedProjectIds.includes(NO_PROJECT_ID)) return false
+    if (ownerFilter !== 'all' && tx.ownerId !== ownerFilter) return false
+    return true
+  })
 
-  // Separate analytics just for the pie chart — respects the owner filter
-  const pieTransactions = pieOwnerFilter === 'all'
-    ? periodTransactions
-    : periodTransactions.filter((tx) => tx.ownerId === pieOwnerFilter)
-  const pieAnalytics = useAnalytics({ transactions: pieTransactions, labels, users })
+  const analytics = useAnalytics({ transactions: visibleTransactions, labels, users })
 
   // Transactions shown in the list — filtered by active labels if any are selected
   const listTransactions = sortTransactions(
     activeLabelIds.length > 0
       ? filterTransactions(
           transactions,
-          { search: '', labelIds: activeLabelIds, ownerId: 'all', reviewed: 'all' },
+          { search: '', labelIds: activeLabelIds, ownerId: ownerFilter, reviewed: 'all', projectId: undefined },
           dateRange
-        )
-      : periodTransactions
+        ).filter((tx) => {
+            if (tx.projectId && excludedProjectIds.includes(tx.projectId)) return false
+            if (!tx.projectId && excludedProjectIds.includes(NO_PROJECT_ID)) return false
+            return true
+          })
+      : visibleTransactions
   )
+
+  function toggleProjectExclusion(projectId: string) {
+    setExcludedProjectIds(
+      excludedProjectIds.includes(projectId)
+        ? excludedProjectIds.filter((id) => id !== projectId)
+        : [...excludedProjectIds, projectId]
+    )
+  }
 
   // Resolve label objects for the active filter chips
   const activeLabels = activeLabelIds.map((id) =>
@@ -84,7 +144,16 @@ export default function DashboardPage() {
     ? transactions.find((tx) => tx.id === editingId)
     : undefined
 
-  const handleEditTransaction = useCallback((id: string) => setEditingId(id), [])
+  const handleEditTransaction = useCallback((id: string) => {
+    const tx = transactions.find((t) => t.id === id)
+    if (tx && tx.amount < 0) {
+      setIncomeMsg(true)
+      if (incomeMsgTimer.current) clearTimeout(incomeMsgTimer.current)
+      incomeMsgTimer.current = setTimeout(() => setIncomeMsg(false), 3000)
+      return
+    }
+    setEditingId(id)
+  }, [transactions])
   function closeDialog() { setEditingId(null) }
 
   return (
@@ -93,12 +162,154 @@ export default function DashboardPage() {
       <div className="px-4 py-4 border-b bg-background sticky top-0 z-20">
         <h1 className="text-xl font-bold tracking-tight">Dashboard</h1>
         <p className="text-xs text-muted-foreground mt-0.5">
-          {periodTransactions.length} transaction{periodTransactions.length !== 1 ? 's' : ''} this period
+          {visibleTransactions.length} transaction{visibleTransactions.length !== 1 ? 's' : ''} this period
         </p>
       </div>
 
-      {/* ── Period selector ──────────────────────────────────────────────── */}
-      <PeriodSelector />
+      {/* ── Unified filter bar ───────────────────────────────────────────── */}
+      <div className="flex items-center gap-1.5 px-4 py-2.5 border-b bg-background overflow-x-auto scrollbar-none">
+        {/* Time period */}
+        {PERIOD_PRESETS.map(({ value, label }) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => setActivePeriod({ preset: value })}
+            className={cn(
+              'flex-shrink-0 text-xs px-3 py-1.5 rounded-full border transition-colors whitespace-nowrap',
+              activePeriod.preset === value
+                ? 'bg-primary text-primary-foreground border-primary'
+                : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'
+            )}
+          >
+            {label}
+          </button>
+        ))}
+        <Popover open={customOpen} onOpenChange={setCustomOpen}>
+          <PopoverTrigger
+            className={cn(
+              'flex-shrink-0 text-xs px-3 py-1.5 rounded-full border transition-colors whitespace-nowrap',
+              activePeriod.preset === 'custom'
+                ? 'bg-primary text-primary-foreground border-primary'
+                : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'
+            )}
+          >
+            {customLabel}
+          </PopoverTrigger>
+          <PopoverContent className="w-64 p-3 space-y-3" align="start">
+            <div className="space-y-1.5">
+              <Label className="text-xs">First date</Label>
+              <Input type="date" value={dateA} max={today} onChange={(e) => setDateA(e.target.value)} />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Second date</Label>
+              <Input type="date" value={dateB} max={today} onChange={(e) => setDateB(e.target.value)} />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              The earlier date becomes the start, the later becomes the end.
+            </p>
+            <Button size="sm" className="w-full" disabled={!dateA || !dateB} onClick={handleApplyCustom}>
+              Apply
+            </Button>
+          </PopoverContent>
+        </Popover>
+
+        {/* Separator */}
+        <div className="w-px h-4 bg-border flex-shrink-0 mx-0.5" />
+
+        {/* Owner */}
+        {([
+          { value: 'all'       as const,    label: 'All' },
+          { value: users[0].id as OwnerId,  label: users[0].name },
+          { value: users[1].id as OwnerId,  label: users[1].name },
+          { value: 'shared'    as const,    label: 'Shared' },
+        ] as { value: OwnerId | 'all'; label: string }[]).map(({ value, label }) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => setOwnerFilter(value)}
+            className={cn(
+              'flex-shrink-0 text-xs px-3 py-1.5 rounded-full border transition-colors whitespace-nowrap',
+              ownerFilter === value
+                ? 'bg-primary text-primary-foreground border-primary'
+                : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'
+            )}
+          >
+            {label}
+          </button>
+        ))}
+
+        {/* Separator + Projects dropdown (only when projects exist) */}
+        {projects.length > 0 && <div className="w-px h-4 bg-border flex-shrink-0 mx-0.5" />}
+        {projects.length > 0 && (
+          <Popover>
+            <PopoverTrigger
+              className={cn(
+                'flex-shrink-0 inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded-full border transition-colors whitespace-nowrap',
+                excludedProjectIds.length > 0
+                  ? 'bg-primary text-primary-foreground border-primary'
+                  : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'
+              )}
+            >
+              Projects
+              {excludedProjectIds.length > 0 && (
+                <span className="text-[10px] font-semibold">−{excludedProjectIds.length}</span>
+              )}
+              <ChevronDown className="w-3 h-3" />
+            </PopoverTrigger>
+            <PopoverContent className="w-52 p-2 space-y-0.5" align="end">
+              <button
+                type="button"
+                onClick={() => setExcludedProjectIds([])}
+                className="w-full flex items-center justify-between px-2 py-1.5 rounded text-xs hover:bg-muted transition-colors"
+              >
+                <span className="font-medium">Show all</span>
+                {excludedProjectIds.length === 0 && <Check className="w-3 h-3" />}
+              </button>
+              <button
+                type="button"
+                onClick={() => setExcludedProjectIds([NO_PROJECT_ID, ...projects.map((p) => p.id)])}
+                className="w-full flex items-center justify-between px-2 py-1.5 rounded text-xs hover:bg-muted transition-colors"
+              >
+                <span className="font-medium">Unselect all</span>
+                {excludedProjectIds.length === projects.length + 1 && excludedProjectIds.includes(NO_PROJECT_ID) && <Check className="w-3 h-3" />}
+              </button>
+              <div className="border-t my-1" />
+              {/* No-project sentinel — always first */}
+              <button
+                type="button"
+                onClick={() => toggleProjectExclusion(NO_PROJECT_ID)}
+                className="w-full flex items-center justify-between px-2 py-1.5 rounded text-xs hover:bg-muted transition-colors"
+              >
+                <span className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full flex-shrink-0 border border-dashed border-muted-foreground" />
+                  <span className={excludedProjectIds.includes(NO_PROJECT_ID) ? 'text-muted-foreground line-through' : ''}>
+                    No project
+                  </span>
+                </span>
+                {!excludedProjectIds.includes(NO_PROJECT_ID) && <Check className="w-3 h-3 text-muted-foreground" />}
+              </button>
+              {projects.map((project) => {
+                const excluded = excludedProjectIds.includes(project.id)
+                return (
+                  <button
+                    key={project.id}
+                    type="button"
+                    onClick={() => toggleProjectExclusion(project.id)}
+                    className="w-full flex items-center justify-between px-2 py-1.5 rounded text-xs hover:bg-muted transition-colors"
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: project.color }} />
+                      {project.icon && <span>{project.icon}</span>}
+                      <span className={excluded ? 'text-muted-foreground line-through' : ''}>{project.name}</span>
+                    </span>
+                    {!excluded && <Check className="w-3 h-3 text-muted-foreground" />}
+                  </button>
+                )
+              })}
+            </PopoverContent>
+          </Popover>
+        )}
+      </div>
 
       {/* ── Content ──────────────────────────────────────────────────────── */}
       <div className="flex-1 overflow-auto p-4 space-y-4">
@@ -107,24 +318,26 @@ export default function DashboardPage() {
           spendByOwner={analytics.spendByOwner}
           spendByLabel={analytics.spendByLabel}
           avgDailySpend={analytics.avgDailySpend}
-          transactionCount={periodTransactions.length}
+          transactionCount={visibleTransactions.length}
         />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <SpendingPieChart
-            spendByLabel={pieAnalytics.spendByLabel}
+            spendByLabel={analytics.spendByLabel}
             onLabelClick={handleLabelClick}
             activeLabelIds={activeLabelIds}
-            users={users}
-            ownerFilter={pieOwnerFilter}
-            onOwnerFilterChange={setPieOwnerFilter}
           />
           <SpendingLineChart
-            transactions={periodTransactions}
+            transactions={visibleTransactions}
             users={users}
             dateRange={dateRange}
           />
         </div>
+
+        <CashflowChart
+          transactions={visibleTransactions}
+          labels={labels}
+        />
 
         {/* ── Inline transaction list ───────────────────────────────────── */}
         <div className="bg-card ring-1 ring-border rounded-xl overflow-hidden">
@@ -158,7 +371,7 @@ export default function DashboardPage() {
               ))}
 
               <span className="text-xs text-muted-foreground">
-                {listTransactions.length}{activeLabelIds.length > 0 ? ` of ${periodTransactions.length}` : ''}
+                {listTransactions.length}{activeLabelIds.length > 0 ? ` of ${visibleTransactions.length}` : ''}
               </span>
             </div>
 
@@ -180,6 +393,19 @@ export default function DashboardPage() {
             onEditTransaction={handleEditTransaction}
           />
         </div>
+      </div>
+
+      {/* ── Income-only toast ────────────────────────────────────────────── */}
+      <div
+        aria-live="polite"
+        className={cn(
+          'fixed bottom-20 md:bottom-6 left-1/2 -translate-x-1/2 z-50',
+          'px-4 py-2.5 rounded-lg bg-foreground text-background text-sm shadow-lg',
+          'transition-all duration-300 pointer-events-none whitespace-nowrap',
+          incomeMsg ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2',
+        )}
+      >
+        Incomes can only be edited in the {incomePageLabel} page
       </div>
 
       {/* ── Edit dialog ──────────────────────────────────────────────────── */}

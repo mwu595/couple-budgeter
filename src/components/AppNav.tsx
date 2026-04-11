@@ -2,15 +2,15 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, Receipt, Tag, FolderOpen, Settings } from 'lucide-react'
+import { LayoutDashboard, Receipt, TrendingUp, Tags, Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-const NAV_LINKS = [
-  { href: '/dashboard',    label: 'Dashboard',    icon: LayoutDashboard },
-  { href: '/transactions', label: 'Transactions', icon: Receipt },
-  { href: '/labels',       label: 'Labels',       icon: Tag },
-  { href: '/projects',     label: 'Projects',     icon: FolderOpen },
-  { href: '/settings',     label: 'Settings',     icon: Settings },
+export const NAV_LINKS = [
+  { href: '/dashboard',    label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/transactions', label: 'Expenses',  icon: Receipt },
+  { href: '/income',       label: 'Income',    icon: TrendingUp },
+  { href: '/tags',         label: 'Tags',      icon: Tags },
+  { href: '/settings',     label: 'Settings',  icon: Settings },
 ] as const
 
 export function AppNav() {

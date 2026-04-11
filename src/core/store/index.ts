@@ -13,11 +13,13 @@ export const useTransactions        = () => useAppStore((s) => s.transactions)
 export const useLabels              = () => useAppStore((s) => s.labels)
 export const useAccounts            = () => useAppStore((s) => s.accounts)
 export const useProjects            = () => useAppStore((s) => s.projects)
+export const useRecurringIncomes    = () => useAppStore((s) => s.recurringIncomes)
 export const useUsers               = () => useAppStore((s) => s.users)
 export const useActivePeriod        = () => useAppStore((s) => s.activePeriod)
 export const useFilters             = () => useAppStore((s) => s.filters)
 export const useOnboardingComplete  = () => useAppStore((s) => s.onboardingComplete)
-export const useSampleDataDismissed = () => useAppStore((s) => s.sampleDataDismissed)
+export const useSampleDataDismissed           = () => useAppStore((s) => s.sampleDataDismissed)
+export const useDashboardExcludedProjectIds   = () => useAppStore((s) => s.dashboardExcludedProjectIds)
 export const useDataLoading         = () => useAppStore((s) => s.dataLoading)
 export const useHouseholdId         = () => useAppStore((s) => s.householdId)
 
@@ -68,6 +70,14 @@ export const useFilterActions = () =>
     resetFilters: s.resetFilters,
   }))
 
+export const useRecurringIncomeActions = () =>
+  useAppStore((s) => ({
+    addRecurringIncome:    s.addRecurringIncome,
+    updateRecurringIncome: s.updateRecurringIncome,
+    deleteRecurringIncome: s.deleteRecurringIncome,
+    spawnDueIncomes:       s.spawnDueIncomes,
+  }))
+
 export const useDataActions = () =>
   useAppStore((s) => ({
     setOnboardingComplete:  s.setOnboardingComplete,
@@ -76,6 +86,7 @@ export const useDataActions = () =>
     loadHouseholdData:      s.loadHouseholdData,
     createHouseholdAndSeed: s.createHouseholdAndSeed,
   }))
+
 
 // ─── Type re-exports for convenience ─────────────────────────────────────────
 export type { ActivePeriod, TransactionFilters, UserId }
