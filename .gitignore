@@ -37,10 +37,11 @@ yarn-error.log*
 # vercel
 .vercel
 
-# generated PWA files (leftover from next-pwa, should never be committed)
+# generated PWA files (built at deploy time by @ducanh2912/next-pwa, never committed)
 public/sw.js
 public/sw.js.map
 public/workbox-*.js
+public/swe-worker-*.js
 
 # typescript
 *.tsbuildinfo
