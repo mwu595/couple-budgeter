@@ -4,6 +4,24 @@
 
 ---
 
+## [0.5.2] — 2026-04-11
+
+Bug fixes for future-dated transactions plus a new collapse UX and visual consistency pass.
+
+- **Fix**: "All Time" date range was silently capped at `endOfYear(today)` — future-dated transactions never appeared even though they existed in the DB. Range now extends to 2099
+- **Fix**: Custom date range picker blocked future dates via `max={today}` — constraint removed from both inputs
+- **Future transaction collapse**: Feed groups all future-dated entries behind a collapsible toggle ("N future transactions") at the top. Collapsed by default; expand/collapse preference persists for the session via `sessionStorage`
+- **Card UI alignment**: Expenses and Income pages now wrap their feeds in the same card shell as the Dashboard (`bg-card ring-1 ring-border rounded-xl`) inside a padded scroll container
+
+---
+
+## [0.5.1] — 2026-04-11
+
+- **Fix**: Required fields enforced on transaction form — amount, date, and account can no longer be submitted empty
+- **Fix**: Unselected picker defaults corrected on transaction form
+
+---
+
 ## [0.5.0] — 2026-04-10
 
 Money now has a whole new tab for income, a pretty Sankey chart, and strong opinions about where things belong.

@@ -68,11 +68,11 @@ export function PeriodSelector() {
         <PopoverContent className="w-64 p-3 space-y-3" align="start">
           <div className="space-y-1.5">
             <Label className="text-xs">First date</Label>
-            <Input type="date" value={dateA} max={today} onChange={(e) => setDateA(e.target.value)} />
+            <Input type="date" value={dateA} onChange={(e) => setDateA(e.target.value)} />
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs">Second date</Label>
-            <Input type="date" value={dateB} max={today} onChange={(e) => setDateB(e.target.value)} />
+            <Input type="date" value={dateB} onChange={(e) => setDateB(e.target.value)} />
           </div>
           <p className="text-xs text-muted-foreground">
             The earlier date becomes the start, the later becomes the end.

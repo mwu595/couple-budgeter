@@ -16,7 +16,7 @@ export function getDateRangeForPeriod(period: ActivePeriod): DateRange {
 
   switch (period.preset) {
     case 'all_time':
-      return { start: '2000-01-01', end: fmt(endOfYear(today)) }
+      return { start: '2000-01-01', end: '2099-12-31' }
 
     case 'this_month':
       return { start: fmt(startOfMonth(today)), end: fmt(endOfMonth(today)) }

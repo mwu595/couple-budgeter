@@ -140,22 +140,24 @@ export default function IncomePage() {
       </div>
 
       {/* ── Content ──────────────────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-auto">
-        {activeTab === 'history' ? (
-          <IncomeFeed
-            transactions={sorted}
-            users={users}
-            onEditTransaction={setEditingId}
-          />
-        ) : (
-          <RecurringIncomeManager
-            recurringIncomes={recurringIncomes}
-            users={users}
-            onAdd={handleAddRecurring}
-            onUpdate={(id, data) => updateRecurringIncome(id, data)}
-            onDelete={deleteRecurringIncome}
-          />
-        )}
+      <div className="flex-1 overflow-auto p-4">
+        <div className="bg-card ring-1 ring-border rounded-xl overflow-hidden">
+          {activeTab === 'history' ? (
+            <IncomeFeed
+              transactions={sorted}
+              users={users}
+              onEditTransaction={setEditingId}
+            />
+          ) : (
+            <RecurringIncomeManager
+              recurringIncomes={recurringIncomes}
+              users={users}
+              onAdd={handleAddRecurring}
+              onUpdate={(id, data) => updateRecurringIncome(id, data)}
+              onDelete={deleteRecurringIncome}
+            />
+          )}
+        </div>
       </div>
 
       {/* ── Add / Edit dialog ─────────────────────────────────────────────────── */}

@@ -266,17 +266,19 @@ export default function TransactionsPage() {
       <TransactionFilters users={users} labels={labels} projects={projects} />
 
       {/* ── Feed ────────────────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-auto">
-        <TransactionFeed
-          transactions={sorted}
-          labels={labels}
-          users={users}
-          projects={projects}
-          onEditTransaction={setEditingId}
-          selectionMode={selectionMode}
-          selectedIds={selectedIds}
-          onToggleSelect={handleToggleSelect}
-        />
+      <div className="flex-1 overflow-auto p-4">
+        <div className="bg-card ring-1 ring-border rounded-xl overflow-hidden">
+          <TransactionFeed
+            transactions={sorted}
+            labels={labels}
+            users={users}
+            projects={projects}
+            onEditTransaction={setEditingId}
+            selectionMode={selectionMode}
+            selectedIds={selectedIds}
+            onToggleSelect={handleToggleSelect}
+          />
+        </div>
       </div>
 
       {/* ── Delete confirm ───────────────────────────────────────────────── */}
