@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { ChevronDown } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 import type { Project } from '@/core/types'
@@ -10,9 +11,11 @@ interface ProjectPickerProps {
   selectedId?: string
   onChange: (id: string | undefined) => void
   triggerClassName?: string
+  placeholder?: string
+  showChevron?: boolean
 }
 
-export function ProjectPicker({ projects, selectedId, onChange, triggerClassName }: ProjectPickerProps) {
+export function ProjectPicker({ projects, selectedId, onChange, triggerClassName, placeholder, showChevron }: ProjectPickerProps) {
   const [open, setOpen] = useState(false)
   const selected = projects.find((p) => p.id === selectedId)
 
@@ -27,7 +30,7 @@ export function ProjectPicker({ projects, selectedId, onChange, triggerClassName
         aria-label={selected ? `Project: ${selected.name}` : 'Assign project'}
       >
         {selected ? (
-          <>
+          <span className="flex items-center gap-1.5 min-w-0">
             {selected.icon ? (
               <span aria-hidden="true">{selected.icon}</span>
             ) : (
@@ -37,10 +40,15 @@ export function ProjectPicker({ projects, selectedId, onChange, triggerClassName
                 aria-hidden="true"
               />
             )}
-            <span className="text-muted-foreground max-w-[80px] truncate">{selected.name}</span>
-          </>
+            <span className="truncate">{selected.name}</span>
+          </span>
         ) : (
-          <span className="text-muted-foreground/40">📁</span>
+          <span className="text-muted-foreground">
+            {placeholder ?? '📁'}
+          </span>
+        )}
+        {(showChevron ?? placeholder !== undefined) && (
+          <ChevronDown className="w-4 h-4 text-muted-foreground shrink-0" />
         )}
       </PopoverTrigger>
 

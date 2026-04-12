@@ -60,7 +60,7 @@ export default function InvitePage() {
   return (
     <div className="flex flex-col min-h-screen md:min-h-0 md:h-screen">
       <div className="px-4 py-4 border-b bg-background sticky top-0 z-20">
-        <h1 className="text-xl font-bold tracking-tight">Invite partner</h1>
+        <h1 className="text-lg font-bold tracking-tight">Invite partner</h1>
         <p className="text-xs text-muted-foreground mt-0.5">
           Share your household with one other person
         </p>
@@ -69,8 +69,8 @@ export default function InvitePage() {
       <div className="flex-1 overflow-auto p-4 max-w-md space-y-6">
         {/* Partner already joined */}
         {partnerJoined && (
-          <div className="flex items-start gap-3 border rounded-xl p-4 bg-muted/40">
-            <UserCheck className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+          <div className="flex items-start gap-3 border border-border shadow-[rgba(0,0,0,0.08)_0px_2px_8px_0px] rounded-xl p-4 bg-muted/40">
+            <UserCheck className="w-5 h-5 text-foreground mt-0.5 flex-shrink-0" />
             <div>
               <p className="text-sm font-medium">Partner joined</p>
               <p className="text-xs text-muted-foreground mt-0.5">
@@ -82,8 +82,8 @@ export default function InvitePage() {
 
         {/* Invite sent confirmation */}
         {!partnerJoined && sent && (
-          <div className="flex items-start gap-3 border rounded-xl p-4 bg-muted/40">
-            <CheckCircle2 className="w-5 h-5 text-green-600 mt-0.5 flex-shrink-0" />
+          <div className="flex items-start gap-3 border border-border shadow-[rgba(0,0,0,0.08)_0px_2px_8px_0px] rounded-xl p-4 bg-muted/40">
+            <CheckCircle2 className="w-5 h-5 text-foreground mt-0.5 flex-shrink-0" />
             <div>
               <p className="text-sm font-medium">Invite saved</p>
               <p className="text-xs text-muted-foreground mt-0.5">
@@ -96,7 +96,7 @@ export default function InvitePage() {
 
         {/* Pending invite (loaded from DB) */}
         {!partnerJoined && !sent && pendingEmail && (
-          <div className="flex items-start gap-3 border rounded-xl p-4 bg-muted/40">
+          <div className="flex items-start gap-3 border border-border shadow-[rgba(0,0,0,0.08)_0px_2px_8px_0px] rounded-xl p-4 bg-muted/40">
             <Mail className="w-5 h-5 text-muted-foreground mt-0.5 flex-shrink-0" />
             <div>
               <p className="text-sm font-medium">Invite pending</p>

@@ -45,9 +45,9 @@ export function PeriodSelector() {
       ? `${format(parseISO(activePeriod.custom.start), 'MMM d')} – ${format(parseISO(activePeriod.custom.end), 'MMM d')}`
       : 'Custom'
 
-  const pillBase    = 'flex-shrink-0 text-xs px-3 py-1.5 rounded-full border transition-colors whitespace-nowrap'
-  const pillActive  = 'bg-primary text-primary-foreground border-primary'
-  const pillInactive = 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'
+  const pillBase    = 'flex-shrink-0 text-xs px-3 py-1.5 rounded-full font-medium transition-colors whitespace-nowrap'
+  const pillActive  = 'bg-primary text-primary-foreground'
+  const pillInactive = 'bg-secondary text-foreground hover:bg-[#e2e2e2]'
 
   return (
     <div className="flex items-center gap-1.5 px-4 py-2.5 border-b bg-background overflow-x-auto scrollbar-none">

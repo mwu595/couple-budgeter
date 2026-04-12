@@ -29,7 +29,7 @@ export function ProjectSummaryCards({ projects, transactions }: ProjectSummaryCa
           <Link
             key={project.id}
             href="/projects"
-            className="flex-shrink-0 w-44 bg-card ring-1 ring-border rounded-xl p-3 hover:ring-primary/40 transition-all group"
+            className="flex-shrink-0 w-44 bg-card border border-border shadow-[rgba(0,0,0,0.08)_0px_2px_8px_0px] rounded-xl p-3 hover:shadow-[rgba(0,0,0,0.16)_0px_4px_16px_0px] transition-all group"
           >
             <div className="flex items-center gap-1.5 mb-1">
               {project.icon && <span aria-hidden="true" className="text-sm">{project.icon}</span>}

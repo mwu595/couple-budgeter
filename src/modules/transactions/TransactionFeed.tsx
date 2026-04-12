@@ -103,7 +103,7 @@ export function TransactionFeed({
   function renderGroup(date: string) {
     return (
       <div key={date} ref={date === anchorDate ? anchorRef : undefined}>
-        <div className="sticky top-0 z-10 px-4 py-1.5 bg-muted/90 backdrop-blur-sm border-y text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+        <div className="sticky top-0 z-10 px-4 py-1.5 bg-background/95 backdrop-blur-sm border-y border-border text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
           {formatDateHeader(date)}
         </div>
         <div className="divide-y divide-border/60">

@@ -99,7 +99,7 @@ export default function TagsPage() {
     <div className="flex flex-col h-full min-h-screen md:min-h-0 md:h-screen">
       {/* ── Page header ──────────────────────────────────────────────────── */}
       <div className="px-4 py-4 border-b bg-background sticky top-0 z-20">
-        <h1 className="text-xl font-bold tracking-tight">Tags</h1>
+        <h1 className="text-lg font-bold tracking-tight">Tags</h1>
         <p className="text-xs text-muted-foreground mt-0.5">
           Manage your projects, labels, and accounts
         </p>
@@ -109,10 +109,10 @@ export default function TagsPage() {
       <div className="flex-1 overflow-auto p-4 space-y-4">
 
         {/* ══ Projects ══════════════════════════════════════════════════════ */}
-        <section className="bg-card ring-1 ring-border rounded-xl overflow-hidden">
+        <section className="bg-card border border-border shadow-[rgba(0,0,0,0.08)_0px_2px_8px_0px] rounded-xl overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b">
             <div>
-              <span className="text-sm font-semibold">Projects</span>
+              <span className="text-sm font-medium">Projects</span>
               <span className="ml-2 text-xs text-muted-foreground">
                 {projects.length}
               </span>
@@ -131,10 +131,10 @@ export default function TagsPage() {
         </section>
 
         {/* ══ Labels ════════════════════════════════════════════════════════ */}
-        <section className="bg-card ring-1 ring-border rounded-xl overflow-hidden">
+        <section className="bg-card border border-border shadow-[rgba(0,0,0,0.08)_0px_2px_8px_0px] rounded-xl overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b">
             <div>
-              <span className="text-sm font-semibold">Labels</span>
+              <span className="text-sm font-medium">Labels</span>
               <span className="ml-2 text-xs text-muted-foreground">
                 {labels.length}
               </span>
@@ -153,10 +153,10 @@ export default function TagsPage() {
         </section>
 
         {/* ══ Accounts ══════════════════════════════════════════════════════ */}
-        <section className="bg-card ring-1 ring-border rounded-xl overflow-hidden">
+        <section className="bg-card border border-border shadow-[rgba(0,0,0,0.08)_0px_2px_8px_0px] rounded-xl overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b">
             <div>
-              <span className="text-sm font-semibold">Accounts</span>
+              <span className="text-sm font-medium">Accounts</span>
               <span className="ml-2 text-xs text-muted-foreground">
                 {accounts.length}
               </span>
@@ -182,11 +182,11 @@ export default function TagsPage() {
                     className="flex items-center justify-between gap-3 px-4 py-3.5"
                   >
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+                      <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center shrink-0">
                         <CreditCard className="w-4 h-4 text-muted-foreground" />
                       </div>
                       <div className="min-w-0">
-                        <p className="text-sm font-medium truncate">{account.name}</p>
+                        <p className="font-medium truncate">{account.name}</p>
                         <p className="text-xs text-muted-foreground">
                           {count} transaction{count !== 1 ? 's' : ''}
                         </p>

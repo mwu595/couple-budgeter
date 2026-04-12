@@ -4,6 +4,25 @@
 
 ---
 
+## [0.6.0] — 2026-04-11
+
+Comprehensive UI overhaul across every major surface — unified card styles, smarter filter rows, cleaner charts, and a redesigned Income page.
+
+- **Design system**: Uber-inspired black/white language codified in `DESIGN.md`; card shell standardized to `border border-border shadow-[rgba(0,0,0,0.08)_0px_2px_8px_0px] rounded-xl` everywhere; buttons all `rounded-full`; inputs use `border-foreground`
+- **Expenses filter bar**: collapsed into a single scrollable row — period presets → custom range popover → owner → reviewed → projects dropdown → labels row → search bar; dividers separate groups
+- **Income page restructure**: removed History/Recurring toggle entirely; both sections always visible as stacked cards; Recurring section shows an empty state with an Add button when empty; filter row matches Expenses style
+- **TransactionRow layout**: switched to CSS grid (`grid-cols-[1fr_auto]`) for precise two-row alignment; project indicator moves to right-side second row (same height as date/account); label picker shows `+ add label(s)`, project picker shows `📁 add a project` on hover
+- **TransactionForm**: Account picker now has visible border; project selector added above "Mark as reviewed"
+- **Chart legends**: replaced Recharts built-in `Legend` with custom HTML rows pinned to card bottom on both Pie and Line charts; legend text and dots match label/owner colors; pie chart enlarged to fill container
+- **Labels (Tags page)**: label name rendered in label color instead of a badge; icon inlined; transaction count as secondary text
+- **Projects (Tags page)**: status group headers (`Active / Upcoming / Completed`) match Expenses date header style
+- **Income feed**: date headers match Expenses style — muted, uppercased, backdrop-blurred
+- **Settings page**: Account section card structure aligned with all other settings sections
+- **ProjectPicker**: added `placeholder` and `showChevron` props; fixed selected-state alignment bug (icon + name wrapped in a single flex child so `justify-between` works correctly)
+- **README**: rewritten with humorous tone, business-first framing, updated repo URL to `mwu595/couple-budgeter`, `localhost:xxxx` replaces hardcoded port
+
+---
+
 ## [0.5.2] — 2026-04-11
 
 Bug fixes for future-dated transactions plus a new collapse UX and visual consistency pass.

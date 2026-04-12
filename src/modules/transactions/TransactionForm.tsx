@@ -9,9 +9,10 @@ import { Label } from '@/components/ui/label'
 import { LabelBadge } from '@/components/LabelBadge'
 import { LabelPicker } from '@/components/LabelPicker'
 import { AccountPicker } from '@/components/AccountPicker'
+import { ProjectPicker } from '@/components/ProjectPicker'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import type { Transaction, OwnerId } from '@/core/types'
-import { useAppStore, useLabels, useUsers, useAccounts } from '@/core/store'
+import { useAppStore, useLabels, useUsers, useAccounts, useProjects } from '@/core/store'
 import { cn } from '@/lib/utils'
 
 interface TransactionFormProps {
@@ -29,6 +30,7 @@ type FormValues = {
   reviewed: boolean
   labelIds: string[]
   ownerId: OwnerId | ''
+  projectId: string | undefined
 }
 
 function getDefaults(tx?: Transaction): FormValues {
@@ -42,6 +44,7 @@ function getDefaults(tx?: Transaction): FormValues {
       reviewed:    tx.reviewed,
       labelIds:    tx.labelIds,
       ownerId:     tx.ownerId,
+      projectId:   tx.projectId,
     }
   }
   return {
@@ -53,6 +56,7 @@ function getDefaults(tx?: Transaction): FormValues {
     reviewed:    false,
     labelIds:    [],
     ownerId:     '',
+    projectId:   undefined,
   }
 }
 
@@ -67,6 +71,7 @@ export function TransactionForm({ transaction, onSuccess, onCancel }: Transactio
   const deleteTransaction = useAppStore((s) => s.deleteTransaction)
   const allLabels         = useLabels()
   const allAccounts       = useAccounts()
+  const allProjects       = useProjects()
   const users             = useUsers()
 
   const isEditing = Boolean(transaction)
@@ -99,6 +104,7 @@ export function TransactionForm({ transaction, onSuccess, onCancel }: Transactio
       amount,
       accountName: values.accountName.trim(),
       reviewed:    values.reviewed,
+      projectId:   values.projectId,
       ...(values.notes.trim() ? { notes: values.notes.trim() } : {}),
     }
 
@@ -245,6 +251,20 @@ export function TransactionForm({ transaction, onSuccess, onCancel }: Transactio
           />
         </div>
       </div>
+
+      {/* Project */}
+      {allProjects.length > 0 && (
+        <div className="space-y-1.5">
+          <Label>Project <span className="text-muted-foreground font-normal">(optional)</span></Label>
+          <ProjectPicker
+            projects={allProjects}
+            selectedId={values.projectId}
+            onChange={(id) => field('projectId', id)}
+            placeholder="Select project…"
+            triggerClassName="w-full flex items-center justify-between text-sm px-3 py-2 rounded-md border border-foreground bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+          />
+        </div>
+      )}
 
       {/* Reviewed */}
       <div className="flex items-center gap-2">

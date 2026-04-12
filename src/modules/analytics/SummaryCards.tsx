@@ -13,8 +13,8 @@ interface SummaryCardsProps {
 
 function Card({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-card ring-1 ring-border rounded-xl p-4 space-y-2.5">
-      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">{title}</p>
+    <div className="bg-card border border-border shadow-[rgba(0,0,0,0.08)_0px_2px_8px_0px] rounded-xl p-4 space-y-2.5">
+      <p className="text-sm font-medium">{title}</p>
       {children}
     </div>
   )

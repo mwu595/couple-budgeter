@@ -24,7 +24,6 @@ import {
 } from '@/core/store'
 import { filterTransactions, sortTransactions, getDateRangeForPeriod, exportTransactionsToCsv } from '@/core/utils'
 import { TransactionFeed, TransactionFilters, TransactionForm } from '@/modules/transactions'
-import { PeriodSelector } from '@/components/PeriodSelector'
 import type { OwnerId } from '@/core/types'
 
 export default function TransactionsPage() {
@@ -225,7 +224,7 @@ export default function TransactionsPage() {
         // ── Normal header ──────────────────────────────────────────────
         <div className="flex items-center justify-between px-4 py-4 border-b bg-background sticky top-0 z-20">
           <div>
-            <h1 className="text-xl font-bold tracking-tight">Expenses</h1>
+            <h1 className="text-lg font-bold tracking-tight">Expenses</h1>
             <p className="text-xs text-muted-foreground mt-0.5">
               {sorted.length !== transactions.length
                 ? `${sorted.length} of ${transactions.length}`
@@ -259,15 +258,12 @@ export default function TransactionsPage() {
         </div>
       )}
 
-      {/* ── Period selector ──────────────────────────────────────────────── */}
-      <PeriodSelector />
-
       {/* ── Filters ─────────────────────────────────────────────────────── */}
       <TransactionFilters users={users} labels={labels} projects={projects} />
 
       {/* ── Feed ────────────────────────────────────────────────────────── */}
       <div className="flex-1 overflow-auto p-4">
-        <div className="bg-card ring-1 ring-border rounded-xl overflow-hidden">
+        <div className="bg-card border border-border shadow-[rgba(0,0,0,0.08)_0px_2px_8px_0px] rounded-xl overflow-hidden">
           <TransactionFeed
             transactions={sorted}
             labels={labels}

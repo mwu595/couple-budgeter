@@ -1,7 +1,6 @@
 'use client'
 
 import { Pencil, Tag } from 'lucide-react'
-import { LabelBadge } from '@/components/LabelBadge'
 import { Button } from '@/components/ui/button'
 import type { Label, Transaction } from '@/core/types'
 
@@ -41,12 +40,15 @@ export function LabelList({ labels, transactions, onEdit }: LabelListProps) {
               aria-hidden="true"
             />
 
-            {/* Badge preview */}
-            <div className="flex-1 min-w-0 flex items-center gap-3">
-              <LabelBadge label={label} size="sm" />
-              <span className="text-xs text-muted-foreground">
+            {/* Name + count */}
+            <div className="flex-1 min-w-0">
+              <p className="font-medium truncate" style={{ color: label.color }}>
+                {label.icon && <span className="mr-1">{label.icon}</span>}
+                {label.name}
+              </p>
+              <p className="text-xs text-muted-foreground">
                 {count} transaction{count !== 1 ? 's' : ''}
-              </span>
+              </p>
             </div>
 
             {/* Edit button */}

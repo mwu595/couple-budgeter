@@ -1,23 +1,26 @@
-# Money Tracker 2026
+# Couple Budgeter
 
-A shared budget tracker for couples — track expenses, assign ownership, label spending, and visualize patterns over time.
+Money is the #1 thing couples fight about. This app won't fix your relationship, but it will at least make sure you're both looking at the same numbers.
 
-**Live:** Deployed on Vercel · **Repo:** [mwu595/money-tracker-2026](https://github.com/mwu595/money-tracker-2026)
+**Couple Budgeter** is a shared expense tracker built specifically for two people who want to split financial visibility without splitting their sanity. Track expenses individually or as a pair, categorize spending, watch your habits in charts that don't lie, and sync it all to the cloud so neither person can claim ignorance.
+
+**Live:** Deployed on Vercel · **Repo:** [mwu595/couple-budgeter](https://github.com/mwu595/couple-budgeter)
 
 ---
 
-## Features
+## What It Does
 
-- **Transaction feed** — add, edit, search, filter, and review transactions
-- **Labels** — categorize spending with colored, emoji-tagged labels
-- **Ownership** — tag each transaction as User A, User B, or Shared
-- **Projects** — group transactions under a named project with an optional budget and date range
-- **Bulk actions** — select multiple transactions and assign labels, projects, or owner in one tap
-- **Analytics dashboard** — spending totals, pie chart by label, line chart over time
-- **Period selector** — filter all views by preset or custom date range
-- **CSV export** — export the current filtered view
-- **Cloud sync** — Supabase backend with real-time optimistic updates
-- **Plaid integration** — bank account connection (sandbox; production pending)
+- **Shared + individual ownership** — every transaction is tagged to Person A, Person B, or Shared. Filter by person. No more "wait, whose credit card was that?"
+- **Transaction feed** — add, edit, search, filter, bulk-select, and mark transactions as reviewed
+- **Labels** — color-coded, emoji-tagged categories for the things you actually spend on
+- **Projects** — group transactions under a named goal (vacation, renovation, etc.) with optional budget and date range
+- **Bulk actions** — select multiple transactions and assign labels, owner, or project in one tap
+- **Income tracking** — log one-off income and set up recurring paychecks or transfers
+- **Analytics dashboard** — spending totals, pie chart by label, line chart over time, Sankey cashflow diagram
+- **Period selector** — filter every view by preset or custom date range
+- **CSV export** — because sometimes you need to yell at a spreadsheet
+- **Cloud sync** — Supabase backend with optimistic updates (feels instant, syncs in the background)
+- **Plaid integration** — connect bank accounts to pull transactions automatically (sandbox mode; production live)
 
 ---
 
@@ -32,7 +35,7 @@ A shared budget tracker for couples — track expenses, assign ownership, label 
 | Charts | Recharts |
 | State | Zustand |
 | Auth + DB | Supabase |
-| Bank sync | Plaid (sandbox) |
+| Bank sync | Plaid |
 | Hosting | Vercel |
 
 ---
@@ -41,11 +44,11 @@ A shared budget tracker for couples — track expenses, assign ownership, label 
 
 ```bash
 npm install
-cp .env.example .env.local   # fill in Supabase + Plaid keys
+cp .env.example .env.local   # fill in your Supabase + Plaid keys
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
+Open `http://localhost:xxxx` (Next.js will tell you the port).
 
 ### Environment Variables
 

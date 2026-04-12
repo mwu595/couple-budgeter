@@ -108,7 +108,7 @@ export function AccountPicker({ accounts, value, onChange, hasError }: AccountPi
           'w-full flex items-center justify-between text-sm px-3 py-2 rounded-md border bg-background transition-colors text-left',
           hasError
             ? 'border-destructive focus:ring-destructive'
-            : 'border-input hover:border-ring focus:ring-ring',
+            : 'border-foreground focus:ring-ring',
           'focus:outline-none focus:ring-1'
         )}
       >

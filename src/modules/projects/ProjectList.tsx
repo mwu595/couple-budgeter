@@ -64,7 +64,7 @@ export function ProjectList({ projects, transactions, onEdit }: ProjectListProps
 
         return (
           <div key={status}>
-            <div className="px-4 py-2 bg-muted/40 border-y text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+            <div className="px-4 py-1.5 bg-background/95 backdrop-blur-sm border-y border-border text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
               {STATUS_LABEL[status]}
             </div>
             <div className="divide-y">
@@ -89,7 +89,7 @@ export function ProjectList({ projects, transactions, onEdit }: ProjectListProps
                     <div className="flex-1 min-w-0 space-y-1">
                       <div className="flex items-center gap-1.5">
                         {project.icon && <span aria-hidden="true">{project.icon}</span>}
-                        <span className="font-medium text-sm truncate">{project.name}</span>
+                        <span className="font-medium truncate">{project.name}</span>
                       </div>
                       <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <span>{project.startDate} – {project.endDate}</span>

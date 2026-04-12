@@ -81,16 +81,29 @@ export function RecurringIncomeManager({
 
   return (
     <div className="p-4 space-y-4">
-      {/* Header row */}
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-muted-foreground">
-          {recurringIncomes.length} recurring income{recurringIncomes.length !== 1 ? 's' : ''}
-        </p>
-        <Button size="sm" onClick={openAdd}>
-          <Plus className="w-4 h-4 mr-1.5" />
-          Add recurring
-        </Button>
-      </div>
+      {/* Header row — only when entries exist */}
+      {recurringIncomes.length > 0 && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-muted-foreground">
+            {recurringIncomes.length} recurring income{recurringIncomes.length !== 1 ? 's' : ''}
+          </p>
+          <Button size="sm" onClick={openAdd}>
+            <Plus className="w-4 h-4 mr-1.5" />
+            Add recurring
+          </Button>
+        </div>
+      )}
+
+      {/* Empty state */}
+      {recurringIncomes.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-10 gap-3 text-center">
+          <p className="text-sm text-muted-foreground">No recurring income set up</p>
+          <Button size="sm" onClick={openAdd}>
+            <Plus className="w-4 h-4 mr-1.5" />
+            Add recurring income
+          </Button>
+        </div>
+      )}
 
       {/* Tile grid */}
       {recurringIncomes.length > 0 && (
@@ -98,7 +111,7 @@ export function RecurringIncomeManager({
           {recurringIncomes.map((ri) => (
             <div
               key={ri.id}
-              className="bg-background ring-1 ring-border rounded-xl p-4 flex flex-col gap-3"
+              className="bg-background border border-border shadow-[rgba(0,0,0,0.08)_0px_2px_8px_0px] rounded-xl p-4 flex flex-col gap-3"
             >
               {/* Top: name + amount */}
               <div>

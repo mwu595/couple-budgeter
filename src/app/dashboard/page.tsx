@@ -160,7 +160,7 @@ export default function DashboardPage() {
     <div className="flex flex-col min-h-screen md:min-h-0 md:h-screen">
       {/* ── Page header ──────────────────────────────────────────────────── */}
       <div className="px-4 py-4 border-b bg-background sticky top-0 z-20">
-        <h1 className="text-xl font-bold tracking-tight">Dashboard</h1>
+        <h1 className="text-lg font-bold tracking-tight">Dashboard</h1>
         <p className="text-xs text-muted-foreground mt-0.5">
           {visibleTransactions.length} transaction{visibleTransactions.length !== 1 ? 's' : ''} this period
         </p>
@@ -175,10 +175,10 @@ export default function DashboardPage() {
             type="button"
             onClick={() => setActivePeriod({ preset: value })}
             className={cn(
-              'flex-shrink-0 text-xs px-3 py-1.5 rounded-full border transition-colors whitespace-nowrap',
+              'flex-shrink-0 text-xs px-3 py-1.5 rounded-full font-medium transition-colors whitespace-nowrap',
               activePeriod.preset === value
-                ? 'bg-primary text-primary-foreground border-primary'
-                : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-secondary text-foreground hover:bg-[#e2e2e2]'
             )}
           >
             {label}
@@ -187,10 +187,10 @@ export default function DashboardPage() {
         <Popover open={customOpen} onOpenChange={setCustomOpen}>
           <PopoverTrigger
             className={cn(
-              'flex-shrink-0 text-xs px-3 py-1.5 rounded-full border transition-colors whitespace-nowrap',
+              'flex-shrink-0 text-xs px-3 py-1.5 rounded-full font-medium transition-colors whitespace-nowrap',
               activePeriod.preset === 'custom'
-                ? 'bg-primary text-primary-foreground border-primary'
-                : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-secondary text-foreground hover:bg-[#e2e2e2]'
             )}
           >
             {customLabel}
@@ -228,10 +228,10 @@ export default function DashboardPage() {
             type="button"
             onClick={() => setOwnerFilter(value)}
             className={cn(
-              'flex-shrink-0 text-xs px-3 py-1.5 rounded-full border transition-colors whitespace-nowrap',
+              'flex-shrink-0 text-xs px-3 py-1.5 rounded-full font-medium transition-colors whitespace-nowrap',
               ownerFilter === value
-                ? 'bg-primary text-primary-foreground border-primary'
-                : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-secondary text-foreground hover:bg-[#e2e2e2]'
             )}
           >
             {label}
@@ -244,10 +244,10 @@ export default function DashboardPage() {
           <Popover>
             <PopoverTrigger
               className={cn(
-                'flex-shrink-0 inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded-full border transition-colors whitespace-nowrap',
+                'flex-shrink-0 inline-flex items-center gap-1 text-xs px-3 py-1.5 rounded-full font-medium transition-colors whitespace-nowrap',
                 excludedProjectIds.length > 0
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-secondary text-foreground hover:bg-[#e2e2e2]'
               )}
             >
               Projects
@@ -340,7 +340,7 @@ export default function DashboardPage() {
         />
 
         {/* ── Inline transaction list ───────────────────────────────────── */}
-        <div className="bg-card ring-1 ring-border rounded-xl overflow-hidden">
+        <div className="bg-card border border-border shadow-[rgba(0,0,0,0.08)_0px_2px_8px_0px] rounded-xl overflow-hidden">
           {/* List header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card">
             <div className="flex items-center gap-2 min-w-0">

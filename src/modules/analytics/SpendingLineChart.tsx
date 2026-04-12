@@ -13,7 +13,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
 } from 'recharts'
 import { formatCurrency } from '@/core/utils'
@@ -91,7 +90,7 @@ function buildChartData(
 function CustomTooltip({ active, payload, label }: any) {
   if (!active || !payload?.length) return null
   return (
-    <div className="bg-popover border rounded-lg shadow-md px-3 py-2 text-xs space-y-1">
+    <div className="bg-popover shadow-[rgba(0,0,0,0.16)_0px_4px_16px_0px] rounded-lg px-3 py-2 text-xs space-y-1">
       <p className="font-medium mb-1">{label}</p>
       {payload.map((entry: { name: string; value: number; color: string }) => (
         <div key={entry.name} className="flex items-center gap-2">
@@ -142,7 +141,7 @@ export function SpendingLineChart({ transactions, users, dateRange }: SpendingLi
   const title = `${GRANULARITY_LABELS[granularity]} Spending`
 
   return (
-    <div className="bg-card ring-1 ring-border rounded-xl p-4">
+    <div className="bg-card border border-border shadow-[rgba(0,0,0,0.08)_0px_2px_8px_0px] rounded-xl p-4">
       {/* Header */}
       <div className="flex items-start justify-between gap-2 mb-3">
         <div>
@@ -162,10 +161,10 @@ export function SpendingLineChart({ transactions, users, dateRange }: SpendingLi
               key={value}
               onClick={() => setOverride(value === auto && !isOverridden ? null : value)}
               className={cn(
-                'text-[11px] px-2 py-0.5 rounded transition-colors',
+                'text-[11px] px-2 py-0.5 rounded-full transition-colors',
                 granularity === value
                   ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:text-foreground'
+                  : 'bg-secondary text-foreground hover:bg-[#e2e2e2]'
               )}
             >
               {label}
@@ -176,60 +175,75 @@ export function SpendingLineChart({ transactions, users, dateRange }: SpendingLi
 
       {/* Chart or empty state */}
       {chartData.length === 0 ? (
-        <div className="h-[220px] flex items-center justify-center">
+        <div className="h-[248px] flex items-center justify-center">
           <p className="text-xs text-muted-foreground">No data for this period</p>
         </div>
       ) : (
-        <div aria-label={`Line chart showing ${granularity} spending by person`}>
-          <ResponsiveContainer width="100%" height={220}>
-            <LineChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis
-                dataKey="label"
-                tick={{ fontSize: 11 }}
-                tickLine={false}
-                axisLine={false}
-                interval="preserveStartEnd"
-              />
-              <YAxis
-                tickFormatter={(v) => `$${Math.round(v)}`}
-                tick={{ fontSize: 11 }}
-                tickLine={false}
-                axisLine={false}
-                width={48}
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend wrapperStyle={{ fontSize: '11px' }} />
-              <Line
-                type="linear"
-                dataKey="userA"
-                name={users[0].name}
-                stroke="#2E7D32"
-                strokeWidth={2}
-                dot={{ r: 3, fill: '#2E7D32' }}
-                activeDot={{ r: 5 }}
-              />
-              <Line
-                type="linear"
-                dataKey="userB"
-                name={users[1].name}
-                stroke="#1565C0"
-                strokeWidth={2}
-                dot={{ r: 3, fill: '#1565C0' }}
-                activeDot={{ r: 5 }}
-              />
-              <Line
-                type="linear"
-                dataKey="shared"
-                name="Shared"
-                stroke="#7B1FA2"
-                strokeWidth={2}
-                dot={{ r: 3, fill: '#7B1FA2' }}
-                activeDot={{ r: 5 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
+        <>
+          <div aria-label={`Line chart showing ${granularity} spending by person`}>
+            <ResponsiveContainer width="100%" height={248}>
+              <LineChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis
+                  dataKey="label"
+                  tick={{ fontSize: 11 }}
+                  tickLine={false}
+                  axisLine={false}
+                  interval="preserveStartEnd"
+                />
+                <YAxis
+                  tickFormatter={(v) => `$${Math.round(v)}`}
+                  tick={{ fontSize: 11 }}
+                  tickLine={false}
+                  axisLine={false}
+                  width={48}
+                />
+                <Tooltip content={<CustomTooltip />} />
+                <Line
+                  type="linear"
+                  dataKey="userA"
+                  name={users[0].name}
+                  stroke="#2E7D32"
+                  strokeWidth={2}
+                  dot={{ r: 3, fill: '#2E7D32' }}
+                  activeDot={{ r: 5 }}
+                />
+                <Line
+                  type="linear"
+                  dataKey="userB"
+                  name={users[1].name}
+                  stroke="#1565C0"
+                  strokeWidth={2}
+                  dot={{ r: 3, fill: '#1565C0' }}
+                  activeDot={{ r: 5 }}
+                />
+                <Line
+                  type="linear"
+                  dataKey="shared"
+                  name="Shared"
+                  stroke="#7B1FA2"
+                  strokeWidth={2}
+                  dot={{ r: 3, fill: '#7B1FA2' }}
+                  activeDot={{ r: 5 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* ── Custom legend ── */}
+          <div className="flex justify-center gap-6 pt-4">
+            {[
+              { name: users[0].name, color: '#2E7D32' },
+              { name: users[1].name, color: '#1565C0' },
+              { name: 'Shared',      color: '#7B1FA2' },
+            ].map(({ name, color }) => (
+              <div key={name} className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                <span className="text-[11px]" style={{ color }}>{name}</span>
+              </div>
+            ))}
+          </div>
+        </>
       )}
     </div>
   )

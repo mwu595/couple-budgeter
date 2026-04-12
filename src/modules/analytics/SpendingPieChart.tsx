@@ -6,7 +6,6 @@ import {
   Cell,
   Tooltip,
   ResponsiveContainer,
-  Legend,
 } from 'recharts'
 import { formatCurrency } from '@/core/utils'
 import type { SpendByLabel } from './hooks/useAnalytics'
@@ -23,7 +22,7 @@ function CustomTooltip({ active, payload }: any) {
   if (!active || !payload?.length) return null
   const { label, total } = payload[0].payload
   return (
-    <div className="bg-popover border rounded-lg shadow-md px-3 py-2 text-xs space-y-0.5">
+    <div className="bg-popover shadow-[rgba(0,0,0,0.16)_0px_4px_16px_0px] rounded-lg px-3 py-2 text-xs space-y-0.5">
       <p className="font-medium" style={{ color: label.color }}>
         {label.icon && <span className="mr-1">{label.icon}</span>}
         {label.name}
@@ -39,7 +38,7 @@ export function SpendingPieChart({
   activeLabelIds = [],
 }: SpendingPieChartProps) {
   return (
-    <div className="bg-card ring-1 ring-border rounded-xl p-4">
+    <div className="bg-card border border-border shadow-[rgba(0,0,0,0.08)_0px_2px_8px_0px] rounded-xl p-4">
       <p className="text-sm font-medium mb-2">Spending by Label</p>
 
       {spendByLabel.length === 0 ? (
@@ -61,8 +60,8 @@ export function SpendingPieChart({
                   nameKey="label.name"
                   cx="50%"
                   cy="50%"
-                  outerRadius={80}
-                  innerRadius={40}
+                  outerRadius={95}
+                  innerRadius={48}
                   paddingAngle={2}
                   onClick={(entry) => onLabelClick(entry.label.id)}
                   style={{ cursor: 'pointer' }}
@@ -82,34 +81,43 @@ export function SpendingPieChart({
                   })}
                 </Pie>
                 <Tooltip content={<CustomTooltip />} />
-                <Legend
-                  formatter={(value, entry) => {
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    const item = (entry as any).payload
-                    const isActive  = activeLabelIds.includes(item?.label?.id)
-                    const hasFilter = activeLabelIds.length > 0
-                    return (
-                      <span
-                        className="text-xs"
-                        style={{
-                          color: hasFilter && !isActive ? 'var(--muted-foreground)' : 'var(--foreground)',
-                          opacity: hasFilter && !isActive ? 0.5 : 1,
-                        }}
-                      >
-                        {item?.label?.icon && <span className="mr-0.5">{item.label.icon}</span>}
-                        {item?.label?.name ?? value}
-                      </span>
-                    )
-                  }}
-                  wrapperStyle={{ fontSize: '11px' }}
-                />
               </PieChart>
             </ResponsiveContainer>
           </div>
 
-          <p className="text-xs text-muted-foreground text-center mt-1">
-            Click a slice to filter · click again to clear
-          </p>
+          {/* ── Custom legend ── */}
+          <div className="flex flex-wrap justify-center gap-x-4 gap-y-1.5 pt-4">
+            {spendByLabel.map((entry) => {
+              const isActive  = activeLabelIds.includes(entry.label.id)
+              const hasFilter = activeLabelIds.length > 0
+              return (
+                <button
+                  key={entry.label.id}
+                  type="button"
+                  onClick={() => onLabelClick(entry.label.id)}
+                  className="flex items-center gap-1.5"
+                >
+                  <span
+                    className="w-2 h-2 rounded-full shrink-0"
+                    style={{
+                      backgroundColor: entry.label.color,
+                      opacity: hasFilter && !isActive ? 0.4 : 1,
+                    }}
+                  />
+                  <span
+                    className="text-[11px]"
+                    style={{
+                      color: hasFilter && !isActive ? 'var(--muted-foreground)' : entry.label.color,
+                      opacity: hasFilter && !isActive ? 0.5 : 1,
+                    }}
+                  >
+                    {entry.label.icon && <span className="mr-0.5">{entry.label.icon}</span>}
+                    {entry.label.name}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
         </>
       )}
     </div>

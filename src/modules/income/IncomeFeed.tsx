@@ -42,7 +42,7 @@ export function IncomeFeed({ transactions, users, onEditTransaction }: IncomeFee
     <div>
       {sortedDates.map((date) => (
         <div key={date}>
-          <div className="sticky top-0 z-10 px-4 py-1.5 bg-muted/90 backdrop-blur-sm border-y text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+          <div className="sticky top-0 z-10 px-4 py-1.5 bg-background/95 backdrop-blur-sm border-y border-border text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
             {formatDateHeader(date)}
           </div>
           <div className="divide-y divide-border/60">

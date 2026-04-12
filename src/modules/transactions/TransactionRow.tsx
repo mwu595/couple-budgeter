@@ -87,31 +87,31 @@ export function TransactionRow({
         />
       )}
 
-      {/* Main content */}
-      <div className="flex-1 min-w-0">
-        {/* Top row: merchant + amount */}
-        <div className="flex items-center justify-between gap-2">
-          <span className="font-medium truncate">{merchant}</span>
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            {reviewed && (
-              <CheckCircle2
-                className="w-4 h-4 text-green-500"
-                aria-label="Reviewed"
-              />
+      {/* Main content — 2-col grid keeps rows in sync across left and right */}
+      <div className="flex-1 min-w-0 grid grid-cols-[1fr_auto] gap-x-2">
+        {/* Row 1 left: merchant */}
+        <span className="font-medium truncate">{merchant}</span>
+
+        {/* Row 1 right: reviewed + amount */}
+        <div className="flex items-center gap-1.5 justify-end">
+          {reviewed && (
+            <CheckCircle2
+              className="w-4 h-4 text-green-500"
+              aria-label="Reviewed"
+            />
+          )}
+          <span
+            className={cn(
+              'font-semibold tabular-nums text-sm',
+              amount < 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground'
             )}
-            <span
-              className={cn(
-                'font-semibold tabular-nums text-sm',
-                amount < 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground'
-              )}
-            >
-              {amount < 0 ? '+' : '−'}
-              {formatCurrency(Math.abs(amount))}
-            </span>
-          </div>
+          >
+            {amount < 0 ? '+' : '−'}
+            {formatCurrency(Math.abs(amount))}
+          </span>
         </div>
 
-        {/* Bottom row: date/account + label badges + picker trigger */}
+        {/* Row 2 left: date · account + labels + label picker */}
         <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
           <span className="text-xs text-muted-foreground">
             {format(parseISO(date), 'MMM d')} · {accountName}
@@ -121,18 +121,19 @@ export function TransactionRow({
             <LabelBadge key={label.id} label={label} size="xs" />
           ))}
 
-          {/* Inline label picker — hidden in selection mode and for income rows */}
           {!isIncome && !selectionMode && (
             <LabelPicker
               labels={labels}
               selectedIds={labelIds}
               onChange={(ids) => updateTransaction(id, { labelIds: ids })}
-              triggerContent="+"
-              triggerClassName="md:opacity-0 md:group-hover:opacity-100 focus:opacity-100 transition-opacity px-1 py-0.5"
+              triggerContent="+ add label(s)"
+              triggerClassName="md:opacity-0 md:group-hover:opacity-100 focus:opacity-100 transition-opacity px-1 py-0.5 text-xs text-muted-foreground"
             />
           )}
+        </div>
 
-          {/* Project: hidden for income rows */}
+        {/* Row 2 right: project */}
+        <div className="flex items-center justify-end mt-0.5">
           {!isIncome && (selectionMode ? (
             projectId && (() => {
               const proj = projects.find((p) => p.id === projectId)
@@ -143,7 +144,7 @@ export function TransactionRow({
                     style={{ backgroundColor: proj.color }}
                     aria-hidden="true"
                   />
-                  <span className="max-w-[80px] truncate">{proj.name}</span>
+                  {proj.name}
                 </span>
               ) : null
             })()
@@ -153,8 +154,10 @@ export function TransactionRow({
                 projects={projects}
                 selectedId={projectId}
                 onChange={(pid) => updateTransaction(id, { projectId: pid })}
+                placeholder={projectId ? undefined : '📁 add a project'}
+                showChevron={false}
                 triggerClassName={cn(
-                  'px-1 py-0.5 text-muted-foreground hover:text-foreground transition-opacity',
+                  'text-xs text-muted-foreground hover:text-foreground transition-opacity',
                   !projectId && 'md:opacity-0 md:group-hover:opacity-100 focus:opacity-100',
                 )}
               />

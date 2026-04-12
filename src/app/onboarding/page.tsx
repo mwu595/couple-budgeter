@@ -51,7 +51,7 @@ export default function OnboardingPage() {
         {/* Profile cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* User A */}
-          <div className="border rounded-xl p-4 space-y-4">
+          <div className="border border-border shadow-[rgba(0,0,0,0.08)_0px_2px_8px_0px] rounded-xl p-4 space-y-4">
             <div className="flex items-center gap-3">
               <span className="w-12 h-12 rounded-full bg-muted flex items-center justify-center text-2xl select-none flex-shrink-0">
                 {emojiA.trim() || DEFAULT_A.emoji}
@@ -82,7 +82,7 @@ export default function OnboardingPage() {
           </div>
 
           {/* User B */}
-          <div className="border rounded-xl p-4 space-y-4">
+          <div className="border border-border shadow-[rgba(0,0,0,0.08)_0px_2px_8px_0px] rounded-xl p-4 space-y-4">
             <div className="flex items-center gap-3">
               <span className="w-12 h-12 rounded-full bg-muted flex items-center justify-center text-2xl select-none flex-shrink-0">
                 {emojiB.trim() || DEFAULT_B.emoji}
