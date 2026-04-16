@@ -15,7 +15,7 @@ export function filterTransactions(
   filters: TransactionFilters,
   dateRange: DateRange
 ): Transaction[] {
-  const { search, labelIds, ownerId, reviewed, projectId } = filters
+  const { search, labelIds, payerIds, appliedPersons, reviewed, projectId } = filters
   const searchLower = search.toLowerCase()
 
   return transactions.filter((tx) => {
@@ -29,8 +29,11 @@ export function filterTransactions(
       if (!merchantMatch && !notesMatch) return false
     }
 
-    // ── Owner ─────────────────────────────────────────────────────────────
-    if (ownerId !== 'all' && tx.ownerId !== ownerId) return false
+    // ── Payer (OR logic across selected payers; empty = All) ──────────────
+    if (payerIds.length > 0 && !payerIds.includes(tx.payerId)) return false
+
+    // ── Applied person (OR logic; empty = All) ────────────────────────────
+    if (appliedPersons.length > 0 && !appliedPersons.includes(tx.appliedTo)) return false
 
     // ── Labels ────────────────────────────────────────────────────────────
     // The UNLABELED_LABEL sentinel matches transactions with no labels.

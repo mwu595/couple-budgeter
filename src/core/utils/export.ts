@@ -1,4 +1,4 @@
-import type { Transaction, Label, User, OwnerId } from '@/core/types'
+import type { Transaction, Label, User, PayerId } from '@/core/types'
 
 function escapeCsvField(value: string): string {
   // Wrap every field in quotes and escape any internal quotes by doubling them
@@ -21,20 +21,27 @@ export function exportTransactionsToCsv(
 ): void {
   const labelMap = new Map(labels.map((l) => [l.id, l.name]))
 
-  const ownerName: Record<OwnerId, string> = {
+  const payerName: Record<PayerId, string> = {
     user_a:  users[0].name,
     user_b:  users[1].name,
     shared:  'Shared',
   }
 
-  const headers = ['Date', 'Merchant', 'Amount', 'Account', 'Owner', 'Labels', 'Reviewed', 'Notes']
+  const appliedToName: Record<string, string> = {
+    user_a:  users[0].name,
+    user_b:  users[1].name,
+    shared:  'Shared',
+  }
+
+  const headers = ['Date', 'Merchant', 'Amount', 'Account', 'Payer', 'For', 'Labels', 'Reviewed', 'Notes']
 
   const rows = transactions.map((tx) => [
     tx.date,
     tx.merchant,
     tx.amount.toFixed(2),
     tx.accountName,
-    ownerName[tx.ownerId] ?? tx.ownerId,
+    payerName[tx.payerId] ?? tx.payerId,
+    appliedToName[tx.appliedTo] ?? tx.appliedTo,
     tx.labelIds.map((id) => labelMap.get(id) ?? id).join('; '),
     tx.reviewed ? 'Yes' : 'No',
     tx.notes ?? '',

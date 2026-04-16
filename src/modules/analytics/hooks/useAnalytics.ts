@@ -1,10 +1,10 @@
 import { useMemo } from 'react'
 import { parseISO, differenceInCalendarDays } from 'date-fns'
-import type { Transaction, Label, User, OwnerId } from '@/core/types'
+import type { Transaction, Label, User, PayerId } from '@/core/types'
 import { UNLABELED_LABEL } from '@/core/utils'
 
 export interface SpendByOwner {
-  ownerId: OwnerId
+  payerId: PayerId
   name: string
   total: number
 }
@@ -36,15 +36,15 @@ export function useAnalytics({ transactions, labels, users }: UseAnalyticsInput)
     // ── Total spend ─────────────────────────────────────────────────────
     const totalSpend = spending.reduce((sum, tx) => sum + tx.amount, 0)
 
-    // ── Spend by owner ──────────────────────────────────────────────────
-    const ownerMap = new Map<OwnerId, number>()
+    // ── Spend by payer ──────────────────────────────────────────────────
+    const payerMap = new Map<PayerId, number>()
     for (const tx of spending) {
-      ownerMap.set(tx.ownerId, (ownerMap.get(tx.ownerId) ?? 0) + tx.amount)
+      payerMap.set(tx.payerId, (payerMap.get(tx.payerId) ?? 0) + tx.amount)
     }
     const spendByOwner: SpendByOwner[] = [
-      { ownerId: users[0].id, name: users[0].name, total: ownerMap.get(users[0].id) ?? 0 },
-      { ownerId: users[1].id, name: users[1].name, total: ownerMap.get(users[1].id) ?? 0 },
-      { ownerId: 'shared',    name: 'Shared',       total: ownerMap.get('shared') ?? 0 },
+      { payerId: users[0].id, name: users[0].name, total: payerMap.get(users[0].id) ?? 0 },
+      { payerId: users[1].id, name: users[1].name, total: payerMap.get(users[1].id) ?? 0 },
+      { payerId: 'shared',    name: 'Shared',       total: payerMap.get('shared') ?? 0 },
     ]
 
     // ── Spend by label ──────────────────────────────────────────────────

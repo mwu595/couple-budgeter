@@ -1,7 +1,7 @@
 // Public store API — modules and pages import from here, never from appStore.ts directly.
 
 import { useAppStore } from './appStore'
-import type { ActivePeriod, TransactionFilters, UserId } from '@/core/types'
+import type { ActivePeriod, TransactionFilters, UserId, PayerId } from '@/core/types'
 
 export { useAppStore } from './appStore'
 
@@ -89,4 +89,4 @@ export const useDataActions = () =>
 
 
 // ─── Type re-exports for convenience ─────────────────────────────────────────
-export type { ActivePeriod, TransactionFilters, UserId }
+export type { ActivePeriod, TransactionFilters, UserId, PayerId }

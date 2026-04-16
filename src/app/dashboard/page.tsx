@@ -14,7 +14,7 @@ import {
   useAppStore,
 } from '@/core/store'
 import { filterTransactions, sortTransactions, getDateRangeForPeriod, UNLABELED_LABEL } from '@/core/utils'
-import type { OwnerId, PeriodPreset } from '@/core/types'
+import type { PayerId, UserId, PeriodPreset } from '@/core/types'
 import {
   useAnalytics,
   SummaryCards,
@@ -48,8 +48,10 @@ const PERIOD_PRESETS: { value: PeriodPreset; label: string }[] = [
 export default function DashboardPage() {
   // Local label filter — clicking pie slices toggles them; does NOT touch global store filters
   const [activeLabelIds, setActiveLabelIds] = useState<string[]>([])
-  // Page-level owner filter — affects all charts, cards, and the transaction list
-  const [ownerFilter, setOwnerFilter] = useState<OwnerId | 'all'>('all')
+  // Page-level payer filter — affects all charts, cards, and the transaction list
+  const [payerIds, setPayerIds] = useState<PayerId[]>([])
+  // Page-level applied person filter — filters by who the expense is for
+  const [appliedPersons, setAppliedPersons] = useState<(UserId | 'shared')[]>([])
   const [editingId, setEditingId] = useState<string | null>(null)
   const [incomeMsg, setIncomeMsg] = useState(false)
   const incomeMsgTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -66,7 +68,6 @@ export default function DashboardPage() {
   const setExcludedProjectIds = useAppStore((s) => s.setDashboardExcludedProjectIds)
 
   // Custom date range popover state
-  const today = format(new Date(), 'yyyy-MM-dd')
   const existingCustom = activePeriod.preset === 'custom' && activePeriod.custom
   const [customOpen, setCustomOpen] = useState(false)
   const [dateA, setDateA] = useState(existingCustom ? activePeriod.custom!.start : '')
@@ -88,18 +89,26 @@ export default function DashboardPage() {
 
   const dateRange = getDateRangeForPeriod(activePeriod)
 
+  function togglePayerId(val: PayerId) {
+    setPayerIds((prev) => prev.includes(val) ? prev.filter((v) => v !== val) : [...prev, val])
+  }
+  function toggleAppliedPerson(val: UserId | 'shared') {
+    setAppliedPersons((prev) => prev.includes(val) ? prev.filter((v) => v !== val) : [...prev, val])
+  }
+
   // All transactions in the selected period — used as the base set
   const periodTransactions = filterTransactions(
     transactions,
-    { search: '', labelIds: [], ownerId: 'all', reviewed: 'all', projectId: undefined },
+    { search: '', labelIds: [], payerIds: [], appliedPersons: [], reviewed: 'all', projectId: undefined },
     dateRange
   )
 
-  // Apply page-level filters: excluded projects + owner — affects all downstream metrics
+  // Apply page-level filters: excluded projects + payer + applied person — affects all downstream metrics
   const visibleTransactions = periodTransactions.filter((tx) => {
     if (tx.projectId && excludedProjectIds.includes(tx.projectId)) return false
     if (!tx.projectId && excludedProjectIds.includes(NO_PROJECT_ID)) return false
-    if (ownerFilter !== 'all' && tx.ownerId !== ownerFilter) return false
+    if (payerIds.length > 0 && !payerIds.includes(tx.payerId)) return false
+    if (appliedPersons.length > 0 && !appliedPersons.includes(tx.appliedTo)) return false
     return true
   })
 
@@ -110,7 +119,7 @@ export default function DashboardPage() {
     activeLabelIds.length > 0
       ? filterTransactions(
           transactions,
-          { search: '', labelIds: activeLabelIds, ownerId: ownerFilter, reviewed: 'all', projectId: undefined },
+          { search: '', labelIds: activeLabelIds, payerIds, appliedPersons, reviewed: 'all', projectId: undefined },
           dateRange
         ).filter((tx) => {
             if (tx.projectId && excludedProjectIds.includes(tx.projectId)) return false
@@ -169,6 +178,7 @@ export default function DashboardPage() {
       {/* ── Unified filter bar ───────────────────────────────────────────── */}
       <div className="flex items-center gap-1.5 px-4 py-2.5 border-b bg-background overflow-x-auto scrollbar-none">
         {/* Time period */}
+        <span className="flex-shrink-0 text-xs text-muted-foreground font-medium whitespace-nowrap">Time:</span>
         {PERIOD_PRESETS.map(({ value, label }) => (
           <button
             key={value}
@@ -198,11 +208,11 @@ export default function DashboardPage() {
           <PopoverContent className="w-64 p-3 space-y-3" align="start">
             <div className="space-y-1.5">
               <Label className="text-xs">First date</Label>
-              <Input type="date" value={dateA} max={today} onChange={(e) => setDateA(e.target.value)} />
+              <Input type="date" value={dateA} onChange={(e) => setDateA(e.target.value)} />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Second date</Label>
-              <Input type="date" value={dateB} max={today} onChange={(e) => setDateB(e.target.value)} />
+              <Input type="date" value={dateB} onChange={(e) => setDateB(e.target.value)} />
             </div>
             <p className="text-xs text-muted-foreground">
               The earlier date becomes the start, the later becomes the end.
@@ -215,23 +225,64 @@ export default function DashboardPage() {
 
         {/* Separator */}
         <div className="w-px h-4 bg-border flex-shrink-0 mx-0.5" />
+        <span className="flex-shrink-0 text-xs text-muted-foreground font-medium whitespace-nowrap">Payer:</span>
 
-        {/* Owner */}
+        {/* Payer — All clears selection; individual options toggle */}
+        <button
+          type="button"
+          onClick={() => setPayerIds([])}
+          className={cn(
+            'flex-shrink-0 text-xs px-3 py-1.5 rounded-full font-medium transition-colors whitespace-nowrap',
+            payerIds.length === 0 ? 'bg-primary text-primary-foreground' : 'bg-secondary text-foreground hover:bg-[#e2e2e2]'
+          )}
+        >
+          All
+        </button>
         {([
-          { value: 'all'       as const,    label: 'All' },
-          { value: users[0].id as OwnerId,  label: users[0].name },
-          { value: users[1].id as OwnerId,  label: users[1].name },
-          { value: 'shared'    as const,    label: 'Shared' },
-        ] as { value: OwnerId | 'all'; label: string }[]).map(({ value, label }) => (
+          { value: users[0].id as PayerId, label: users[0].avatarEmoji },
+          { value: users[1].id as PayerId, label: users[1].avatarEmoji },
+          { value: 'shared'    as const,   label: `${users[0].avatarEmoji}${users[1].avatarEmoji}` },
+        ] as { value: PayerId; label: string }[]).map(({ value, label }) => (
           <button
             key={value}
             type="button"
-            onClick={() => setOwnerFilter(value)}
+            onClick={() => togglePayerId(value)}
             className={cn(
               'flex-shrink-0 text-xs px-3 py-1.5 rounded-full font-medium transition-colors whitespace-nowrap',
-              ownerFilter === value
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-secondary text-foreground hover:bg-[#e2e2e2]'
+              payerIds.includes(value) ? 'bg-primary text-primary-foreground' : 'bg-secondary text-foreground hover:bg-[#e2e2e2]'
+            )}
+          >
+            {label}
+          </button>
+        ))}
+
+        {/* Separator */}
+        <div className="w-px h-4 bg-border flex-shrink-0 mx-0.5" />
+        <span className="flex-shrink-0 text-xs text-muted-foreground font-medium whitespace-nowrap">Applied to:</span>
+
+        {/* Applied Person — All clears selection; individual options toggle */}
+        <button
+          type="button"
+          onClick={() => setAppliedPersons([])}
+          className={cn(
+            'flex-shrink-0 text-xs px-3 py-1.5 rounded-full font-medium transition-colors whitespace-nowrap',
+            appliedPersons.length === 0 ? 'bg-primary text-primary-foreground' : 'bg-secondary text-foreground hover:bg-[#e2e2e2]'
+          )}
+        >
+          All
+        </button>
+        {([
+          { value: users[0].id as UserId, label: users[0].avatarEmoji },
+          { value: users[1].id as UserId, label: users[1].avatarEmoji },
+          { value: 'shared'    as const,  label: `${users[0].avatarEmoji}${users[1].avatarEmoji}` },
+        ] as { value: UserId | 'shared'; label: string }[]).map(({ value, label }) => (
+          <button
+            key={`ap-${value}`}
+            type="button"
+            onClick={() => toggleAppliedPerson(value)}
+            className={cn(
+              'flex-shrink-0 text-xs px-3 py-1.5 rounded-full font-medium transition-colors whitespace-nowrap',
+              appliedPersons.includes(value) ? 'bg-primary text-primary-foreground' : 'bg-secondary text-foreground hover:bg-[#e2e2e2]'
             )}
           >
             {label}
@@ -240,6 +291,7 @@ export default function DashboardPage() {
 
         {/* Separator + Projects dropdown (only when projects exist) */}
         {projects.length > 0 && <div className="w-px h-4 bg-border flex-shrink-0 mx-0.5" />}
+        {projects.length > 0 && <span className="flex-shrink-0 text-xs text-muted-foreground font-medium whitespace-nowrap">Project:</span>}
         {projects.length > 0 && (
           <Popover>
             <PopoverTrigger
@@ -309,6 +361,22 @@ export default function DashboardPage() {
             </PopoverContent>
           </Popover>
         )}
+
+        {/* Clear */}
+        <div className="w-px h-4 bg-border flex-shrink-0 mx-0.5" />
+        <button
+          type="button"
+          onClick={() => {
+            setActivePeriod({ preset: 'all_time' })
+            setPayerIds([])
+            setAppliedPersons([])
+            setExcludedProjectIds([])
+            setActiveLabelIds([])
+          }}
+          className="flex-shrink-0 text-xs text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap"
+        >
+          Clear
+        </button>
       </div>
 
       {/* ── Content ──────────────────────────────────────────────────────── */}

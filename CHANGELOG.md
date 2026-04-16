@@ -1,133 +1,81 @@
 # Changelog
 
-`[version] — date` • What shipped and why it matters.
+---
+
+## [0.7.1] — 2026-04-15
+
+- **Multi-select Payer/Applied To**: toggle-based; empty = All; emoji avatars in pills and row metadata
+- **Transaction form**: "Who Pays" + "For Who" emoji selectors replace payer picker + checkbox
+- **`applied_to`**: replaces `is_personal` boolean; stores `user_a | user_b | shared` directly
+- **Filter bar**: group labels, Status dropdown, Clear button on all pages
+- **Row metadata**: `🧑 paid, for 👩` / `Earned by 🧑`; future dates unblocked in date pickers
+- **SQL**: 8 migrations → `001_schema.sql` + `002_plaid.sql`
+
+---
+
+## [0.7.0] — 2026-04-15
+
+- **Owner → Payer**: full rename across UI, TypeScript (`OwnerId` → `PayerId`), and DB (`owner_id` → `payer_id`)
+- **Personal Expense flag**: checkbox on transaction form when a specific payer is selected; filters `is_personal` on Dashboard and Expenses
+- **Applied Person filter**: separate filter group from Payer; personal transactions count toward payer, non-personal toward Shared
+- **CSV**: "Owner" → "Payer"; new "Personal" column
 
 ---
 
 ## [0.6.0] — 2026-04-11
 
-Comprehensive UI overhaul across every major surface — unified card styles, smarter filter rows, cleaner charts, and a redesigned Income page.
+Comprehensive UI overhaul.
 
-- **Design system**: Uber-inspired black/white language codified in `DESIGN.md`; card shell standardized to `border border-border shadow-[rgba(0,0,0,0.08)_0px_2px_8px_0px] rounded-xl` everywhere; buttons all `rounded-full`; inputs use `border-foreground`
-- **Expenses filter bar**: collapsed into a single scrollable row — period presets → custom range popover → owner → reviewed → projects dropdown → labels row → search bar; dividers separate groups
-- **Income page restructure**: removed History/Recurring toggle entirely; both sections always visible as stacked cards; Recurring section shows an empty state with an Add button when empty; filter row matches Expenses style
-- **TransactionRow layout**: switched to CSS grid (`grid-cols-[1fr_auto]`) for precise two-row alignment; project indicator moves to right-side second row (same height as date/account); label picker shows `+ add label(s)`, project picker shows `📁 add a project` on hover
-- **TransactionForm**: Account picker now has visible border; project selector added above "Mark as reviewed"
-- **Chart legends**: replaced Recharts built-in `Legend` with custom HTML rows pinned to card bottom on both Pie and Line charts; legend text and dots match label/owner colors; pie chart enlarged to fill container
-- **Labels (Tags page)**: label name rendered in label color instead of a badge; icon inlined; transaction count as secondary text
-- **Projects (Tags page)**: status group headers (`Active / Upcoming / Completed`) match Expenses date header style
-- **Income feed**: date headers match Expenses style — muted, uppercased, backdrop-blurred
-- **Settings page**: Account section card structure aligned with all other settings sections
-- **ProjectPicker**: added `placeholder` and `showChevron` props; fixed selected-state alignment bug (icon + name wrapped in a single flex child so `justify-between` works correctly)
-- **README**: rewritten with humorous tone, business-first framing, updated repo URL to `mwu595/couple-budgeter`, `localhost:xxxx` replaces hardcoded port
-
----
-
-## [0.5.2] — 2026-04-11
-
-Bug fixes for future-dated transactions plus a new collapse UX and visual consistency pass.
-
-- **Fix**: "All Time" date range was silently capped at `endOfYear(today)` — future-dated transactions never appeared even though they existed in the DB. Range now extends to 2099
-- **Fix**: Custom date range picker blocked future dates via `max={today}` — constraint removed from both inputs
-- **Future transaction collapse**: Feed groups all future-dated entries behind a collapsible toggle ("N future transactions") at the top. Collapsed by default; expand/collapse preference persists for the session via `sessionStorage`
-- **Card UI alignment**: Expenses and Income pages now wrap their feeds in the same card shell as the Dashboard (`bg-card ring-1 ring-border rounded-xl`) inside a padded scroll container
-
----
-
-## [0.5.1] — 2026-04-11
-
-- **Fix**: Required fields enforced on transaction form — amount, date, and account can no longer be submitted empty
-- **Fix**: Unselected picker defaults corrected on transaction form
+- **Design system**: Uber-inspired black/white; cards standardized to `border + shadow + rounded-xl`; buttons `rounded-full`; inputs `border-foreground`
+- **Filter bars**: single scrollable row with divider-separated groups; period → custom range → payer → reviewed → projects → labels → search
+- **Income page**: History and Recurring always visible as stacked cards; no more toggle
+- **TransactionRow**: CSS grid layout; project indicator on right; inline label/project pickers on hover
+- **Charts**: custom HTML legends pinned to card bottom; pie chart fills container
+- **Tags page**: label name in label color; project status group headers
 
 ---
 
 ## [0.5.0] — 2026-04-10
 
-Money now has a whole new tab for income, a pretty Sankey chart, and strong opinions about where things belong.
-
-- **Income page** (`/income`): dedicated home for income entries — form, date-grouped feed, period selector, owner filter
-- **Recurring income manager**: tile grid of schedules (Weekly / Bi-weekly / Semi-monthly / Monthly); auto-spawns missed entries on load; editing only affects future, deleting only stops future
-- **Cashflow Sankey chart** (Dashboard): income → spending categories waterfall; graceful no-income fallback; includes a "Potential Savings" node when you're not burning it all
-- **Expenses rename**: "Transactions" is now "Expenses" everywhere except the URL, which doesn't care
-- **Income hidden from Expenses page**: income entries mind their own business and stay out of the expense list
-- **Income edit modal**: "Mark as reviewed" checkbox, same as Expenses
-- **Reviewed checkmark on income rows**: green ✓ beside the amount on both Income page and Dashboard
-- **Read-only income on Dashboard**: clicking an income row shows a toast instead of opening an edit form; page name in the message is dynamic
-- **No tags or projects on income rows**: label picker and project picker hidden for income entries
-- **Rainbow gradient on income rows**: deeper opacity (0.15) across all surfaces
-- **Amount signs**: income shows `+`, expenses show `−`; income rows get the rainbow treatment on Expenses and Dashboard too
-- **Settings note**: "Account connection coming soon." while Plaid API quota is still limited
-- **Tags page cleanup**: project summary tiles removed; list view is enough
+- **Income page** (`/income`): dedicated feed, period selector, owner filter
+- **Recurring income**: schedule manager with auto-spawn on load (weekly/biweekly/semi-monthly/monthly)
+- **Cashflow Sankey chart**: income → spending categories waterfall on Dashboard
+- **Expenses**: income entries hidden from expense list; income-only rows have rainbow gradient and `+` sign
+- **Dashboard**: income rows open toast instead of edit modal
 
 ---
 
 ## [0.4.0] — 2026-04-10
 
-The Dashboard got a proper filter bar and stopped pretending one pie chart controls everything.
-
-- **Exclude Projects filter**: hide specific projects (or untagged transactions) from all dashboard metrics; persists across sessions
-- **Page-level owner filter**: All / Person 1 / Person 2 / Shared pills now gate every chart, card, and list on the page
-- **Unified filter bar**: period + owner + projects in one horizontally-scrollable row with pill styling
-- **Period presets trimmed**: All Time, This Month, Last Month, Custom — the rest were clutter
-- **Line chart defaults to Daily granularity**; "Granularity:" label added for clarity
-- Removed: owner + project controls from inside pie chart card; Amount/Count view toggle (Amount only now)
-
----
-
-## [0.3.1] — 2026-04-06
-
-Bulk-select stopped lying about which labels and owners were actually shared.
-
-- Bulk owner picker now shows the real common owner instead of always defaulting to Shared
-- Project badge survives bulk-select mode (static colored dot instead of vanishing)
-- `OwnerPicker` and `ProjectPicker` close on selection — no more phantom dropdowns
-- Bulk label toggle computes the true intersection so clicking adds and clicking again removes
+- **Exclude Projects filter**: hide projects from all Dashboard metrics; persists across sessions
+- **Page-level owner filter**: gates all charts, cards, and list
+- **Unified filter bar**: period + owner + projects in one scrollable row
 
 ---
 
 ## [0.3.0] — 2026-04-06
 
-Bulk actions grew up and moved into the header where they belong.
-
-- **Bulk actions in header**: select mode transforms the page header into a command bar (Labels, Project, Owner, Delete, Cancel)
-- **Bulk project assignment**: slap a project on a hundred transactions at once
-- **Project summary strip** on Projects page: horizontal scrollable cards sorted newest first
-- Toggle behavior: bulk-applying something already applied to all selected rows removes it
-- Removed: `BulkActionBar` bottom sheet; project summary cards from Dashboard
+- **Bulk actions in header**: select mode transforms page header into command bar (Labels, Project, Owner, Delete)
+- **Bulk project assignment**: assign project to many transactions at once
+- Bulk owner/label pickers compute true common value across selection
 
 ---
 
 ## [0.2.0] — 2026-04-05
 
-Projects landed. Now your "bathroom reno" can have its own color and its own shame spiral.
-
-- **Projects feature**: named projects with color, icon, date range, optional budget
-- `/projects` page with list, edit, delete, and per-project summary card
-- Inline project picker on every transaction row
-- `Project` type, `projectId` on `Transaction`, `lib/db/projects.ts`, `supabase/004_projects.sql`
-- Nav bar updated with Projects tab
+- **Projects**: named projects with color, icon, date range, optional budget; inline picker on every transaction row; `/projects` page
 
 ---
 
 ## [0.1.0] — 2026-03-31
 
-The whole thing. Zero to working couples budget tracker in one shot.
+Initial release — zero to working couples budget tracker.
 
-**Core app (Steps 0–7)**
-- Next.js 15, TypeScript strict, Tailwind v4, shadcn/ui, Zustand, Recharts
-- Transaction feed: add, edit, delete, search, filter by label/owner/reviewed, date grouping
-- Label system: color + emoji, inline multi-label assignment
-- Ownership: User A / User B / Shared, inline picker, profile setup
-- Analytics dashboard: total spend, by-owner, top labels, avg daily; pie + line charts
-- Period selector: presets + custom range
-- Bulk select: bulk-assign label/owner/reviewed, bulk delete
-- CSV export, onboarding flow, sample data, PWA manifest, mobile + desktop layout
-
-**Cloud backend (Steps 8–9)**
-- Supabase Auth: email/password sign-up, sign-in, session management
-- Households: two-user shared workspace, invite via email link
-- Cloud PostgreSQL, optimistic updates, RLS scoped to household
-- Plaid integration (sandbox): link-token, token exchange, account list, transaction sync
+- Next.js 15, TypeScript strict, Tailwind, shadcn/ui, Zustand, Recharts
+- Transactions: add/edit/delete, search, filter, date grouping, bulk actions, CSV export
+- Labels: color + emoji, inline multi-select
+- Analytics: spend by owner/label, pie + line charts, period selector
+- Cloud: Supabase Auth, households, PostgreSQL, RLS, optimistic updates, Plaid sandbox
 
 ---
 

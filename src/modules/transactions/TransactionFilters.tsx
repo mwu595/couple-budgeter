@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
-import type { User, OwnerId, Label as LabelType, Project, PeriodPreset } from '@/core/types'
+import type { User, PayerId, UserId, Label as LabelType, Project, PeriodPreset } from '@/core/types'
 import { useFilters, useActivePeriod, useAppStore } from '@/core/store'
 
 interface TransactionFiltersProps {
@@ -17,10 +17,13 @@ interface TransactionFiltersProps {
   projects: Project[]
 }
 
-const pill     = 'flex-shrink-0 text-xs px-3 py-1.5 rounded-full font-medium transition-colors whitespace-nowrap'
-const active   = 'bg-primary text-primary-foreground'
-const inactive = 'bg-secondary text-foreground hover:bg-[#e2e2e2]'
-const Divider  = () => <div className="w-px h-4 bg-border flex-shrink-0 mx-0.5" />
+const pill        = 'flex-shrink-0 text-xs px-3 py-1.5 rounded-full font-medium transition-colors whitespace-nowrap'
+const active      = 'bg-primary text-primary-foreground'
+const inactive    = 'bg-secondary text-foreground hover:bg-[#e2e2e2]'
+const Divider     = () => <div className="w-px h-4 bg-border flex-shrink-0 mx-0.5" />
+const FilterTag   = ({ children }: { children: React.ReactNode }) => (
+  <span className="flex-shrink-0 text-xs text-muted-foreground font-medium whitespace-nowrap">{children}</span>
+)
 
 const PERIOD_PRESETS: { value: PeriodPreset; label: string }[] = [
   { value: 'all_time',   label: 'All Time' },
@@ -35,7 +38,6 @@ export function TransactionFilters({ users, labels, projects }: TransactionFilte
   const activePeriod    = useActivePeriod()
   const setActivePeriod = useAppStore((s) => s.setActivePeriod)
 
-  const today = format(new Date(), 'yyyy-MM-dd')
   const existingCustom = activePeriod.preset === 'custom' && activePeriod.custom
   const [customOpen, setCustomOpen] = useState(false)
   const [dateA, setDateA] = useState(existingCustom ? activePeriod.custom!.start : '')
@@ -54,11 +56,16 @@ export function TransactionFilters({ users, labels, projects }: TransactionFilte
       ? `${format(parseISO(activePeriod.custom.start), 'MMM d')} – ${format(parseISO(activePeriod.custom.end), 'MMM d')}`
       : 'Custom'
 
-  const ownerOptions = [
-    { value: 'all'       as const,   label: 'All' },
-    { value: users[0].id as OwnerId, label: users[0].name },
-    { value: users[1].id as OwnerId, label: users[1].name },
-    { value: 'shared'    as const,   label: 'Shared' },
+  const payerIndividualOptions: { value: PayerId; label: string }[] = [
+    { value: users[0].id as PayerId, label: users[0].avatarEmoji },
+    { value: users[1].id as PayerId, label: users[1].avatarEmoji },
+    { value: 'shared',               label: `${users[0].avatarEmoji}${users[1].avatarEmoji}` },
+  ]
+
+  const appliedPersonIndividualOptions: { value: UserId | 'shared'; label: string }[] = [
+    { value: users[0].id as UserId, label: users[0].avatarEmoji },
+    { value: users[1].id as UserId, label: users[1].avatarEmoji },
+    { value: 'shared',              label: `${users[0].avatarEmoji}${users[1].avatarEmoji}` },
   ]
 
   const reviewedOptions = [
@@ -67,12 +74,24 @@ export function TransactionFilters({ users, labels, projects }: TransactionFilte
     { value: 'unreviewed' as const, label: 'Unreviewed' },
   ]
 
-  const hasActiveFilters =
-    filters.search !== '' ||
-    filters.ownerId !== 'all' ||
-    filters.reviewed !== 'all' ||
-    filters.labelIds.length > 0 ||
-    filters.projectId !== undefined
+  function togglePayerId(value: PayerId) {
+    const next = filters.payerIds.includes(value)
+      ? filters.payerIds.filter((v) => v !== value)
+      : [...filters.payerIds, value]
+    setFilters({ payerIds: next })
+  }
+
+  function toggleAppliedPerson(value: UserId | 'shared') {
+    const next = filters.appliedPersons.includes(value)
+      ? filters.appliedPersons.filter((v) => v !== value)
+      : [...filters.appliedPersons, value]
+    setFilters({ appliedPersons: next })
+  }
+
+  function handleClearAll() {
+    resetFilters()
+    setActivePeriod({ preset: 'all_time' })
+  }
 
   const activeProject = projects.find((p) => p.id === filters.projectId)
 
@@ -82,6 +101,7 @@ export function TransactionFilters({ users, labels, projects }: TransactionFilte
       <div className="flex items-center gap-1.5 px-4 py-2.5 border-b bg-background overflow-x-auto scrollbar-none">
 
         {/* Period presets */}
+        <FilterTag>Time:</FilterTag>
         {PERIOD_PRESETS.map(({ value, label }) => (
           <button
             key={value}
@@ -99,11 +119,11 @@ export function TransactionFilters({ users, labels, projects }: TransactionFilte
           <PopoverContent className="w-64 p-3 space-y-3" align="start">
             <div className="space-y-1.5">
               <Label className="text-xs">First date</Label>
-              <Input type="date" value={dateA} max={today} onChange={(e) => setDateA(e.target.value)} />
+              <Input type="date" value={dateA} onChange={(e) => setDateA(e.target.value)} />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Second date</Label>
-              <Input type="date" value={dateB} max={today} onChange={(e) => setDateB(e.target.value)} />
+              <Input type="date" value={dateB} onChange={(e) => setDateB(e.target.value)} />
             </div>
             <p className="text-xs text-muted-foreground">
               The earlier date becomes the start, the later becomes the end.
@@ -115,37 +135,85 @@ export function TransactionFilters({ users, labels, projects }: TransactionFilte
         </Popover>
 
         <Divider />
+        <FilterTag>Payer:</FilterTag>
 
-        {/* Owner */}
-        {ownerOptions.map(({ value, label }) => (
+        {/* Payer — All clears selection; individual options toggle */}
+        <button
+          type="button"
+          onClick={() => setFilters({ payerIds: [] })}
+          className={cn(pill, filters.payerIds.length === 0 ? active : inactive)}
+        >
+          All
+        </button>
+        {payerIndividualOptions.map(({ value, label }) => (
           <button
             key={value}
             type="button"
-            onClick={() => setFilters({ ownerId: value })}
-            className={cn(pill, filters.ownerId === value ? active : inactive)}
+            onClick={() => togglePayerId(value)}
+            className={cn(pill, filters.payerIds.includes(value) ? active : inactive)}
           >
             {label}
           </button>
         ))}
 
         <Divider />
+        <FilterTag>Applied to:</FilterTag>
 
-        {/* Reviewed */}
-        {reviewedOptions.map(({ value, label }) => (
+        {/* Applied Person — All clears selection; individual options toggle */}
+        <button
+          type="button"
+          onClick={() => setFilters({ appliedPersons: [] })}
+          className={cn(pill, filters.appliedPersons.length === 0 ? active : inactive)}
+        >
+          All
+        </button>
+        {appliedPersonIndividualOptions.map(({ value, label }) => (
           <button
             key={value}
             type="button"
-            onClick={() => setFilters({ reviewed: value })}
-            className={cn(pill, filters.reviewed === value ? active : inactive)}
+            onClick={() => toggleAppliedPerson(value)}
+            className={cn(pill, filters.appliedPersons.includes(value) ? active : inactive)}
           >
             {label}
           </button>
         ))}
 
+        <Divider />
+        <FilterTag>Status:</FilterTag>
+
+        {/* Reviewed — dropdown */}
+        <Popover>
+          <PopoverTrigger
+            className={cn(pill, 'inline-flex items-center gap-1', filters.reviewed !== 'all' ? active : inactive)}
+          >
+            {reviewedOptions.find((o) => o.value === filters.reviewed)?.label ?? 'All'}
+            <ChevronDown className="w-3 h-3" />
+          </PopoverTrigger>
+          <PopoverContent className="w-36 p-1" align="start">
+            {reviewedOptions.map(({ value, label }) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setFilters({ reviewed: value })}
+                className={cn(
+                  'w-full flex items-center justify-between px-2 py-1.5 rounded text-xs transition-colors',
+                  filters.reviewed === value
+                    ? 'bg-primary/10 text-primary font-medium'
+                    : 'hover:bg-accent text-foreground',
+                )}
+              >
+                {label}
+                {filters.reviewed === value && <Check className="w-3 h-3" />}
+              </button>
+            ))}
+          </PopoverContent>
+        </Popover>
+
         {/* Projects dropdown */}
         {projects.length > 0 && (
           <>
             <Divider />
+            <FilterTag>Project:</FilterTag>
             <Popover>
               <PopoverTrigger
                 className={cn(pill, 'inline-flex items-center gap-1', filters.projectId ? active : inactive)}
@@ -210,24 +278,20 @@ export function TransactionFilters({ users, labels, projects }: TransactionFilte
           </>
         )}
 
-        {/* Clear */}
-        {hasActiveFilters && (
-          <>
-            <Divider />
-            <button
-              type="button"
-              onClick={resetFilters}
-              className="flex-shrink-0 text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 whitespace-nowrap"
-            >
-              Clear
-            </button>
-          </>
-        )}
+        <Divider />
+        <button
+          type="button"
+          onClick={handleClearAll}
+          className="flex-shrink-0 text-xs text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap"
+        >
+          Clear
+        </button>
       </div>
 
       {/* ── Label row ──────────────────────────────────────────────────── */}
       {labels.length > 0 && (
         <div className="flex items-center gap-1.5 px-4 py-2.5 border-b bg-background overflow-x-auto scrollbar-none">
+          <FilterTag>Labels:</FilterTag>
           {labels.map((label) => {
             const isActive = filters.labelIds.includes(label.id)
             return (

@@ -9,7 +9,8 @@ interface TxRow {
   amount: string | number
   account_name: string
   notes: string | null
-  owner_id: string
+  payer_id: string
+  applied_to: string
   project_id: string | null
   recurring_income_id: string | null
   reviewed: boolean
@@ -25,7 +26,8 @@ function mapRow(row: TxRow): Transaction {
     amount: Number(row.amount),
     accountName: row.account_name,
     notes: row.notes ?? undefined,
-    ownerId: row.owner_id as Transaction['ownerId'],
+    payerId: row.payer_id as Transaction['payerId'],
+    appliedTo: row.applied_to as Transaction['appliedTo'],
     labelIds: row.transaction_labels.map((tl) => tl.label_id),
     projectId: row.project_id ?? undefined,
     recurringIncomeId: row.recurring_income_id ?? undefined,
@@ -60,7 +62,8 @@ export async function insertTransaction(
     amount: tx.amount,
     account_name: tx.accountName,
     notes: tx.notes ?? null,
-    owner_id: tx.ownerId,
+    payer_id: tx.payerId,
+    applied_to: tx.appliedTo,
     reviewed: tx.reviewed,
     created_at: tx.createdAt,
     recurring_income_id: tx.recurringIncomeId ?? null,
@@ -91,7 +94,8 @@ export async function insertTransactions(
       amount: tx.amount,
       account_name: tx.accountName,
       notes: tx.notes ?? null,
-      owner_id: tx.ownerId,
+      payer_id: tx.payerId,
+      applied_to: tx.appliedTo,
       reviewed: tx.reviewed,
       created_at: tx.createdAt,
       recurring_income_id: tx.recurringIncomeId ?? null,
@@ -122,8 +126,9 @@ export async function patchTransaction(
   if (updates.amount      !== undefined) dbUpdates.amount       = updates.amount
   if (updates.accountName !== undefined) dbUpdates.account_name = updates.accountName
   if (updates.notes       !== undefined) dbUpdates.notes        = updates.notes ?? null
-  if (updates.ownerId     !== undefined) dbUpdates.owner_id     = updates.ownerId
-  if (updates.reviewed    !== undefined) dbUpdates.reviewed     = updates.reviewed
+  if (updates.payerId    !== undefined) dbUpdates.payer_id    = updates.payerId
+  if (updates.appliedTo  !== undefined) dbUpdates.applied_to  = updates.appliedTo
+  if (updates.reviewed   !== undefined) dbUpdates.reviewed    = updates.reviewed
   if (updates.projectId   !== undefined) dbUpdates.project_id   = updates.projectId ?? null
 
   if (Object.keys(dbUpdates).length > 0) {

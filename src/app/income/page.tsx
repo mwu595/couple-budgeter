@@ -22,13 +22,13 @@ import {
 } from '@/core/store'
 import { filterTransactions, sortTransactions, getDateRangeForPeriod } from '@/core/utils'
 import { IncomeForm, IncomeFeed, RecurringIncomeManager } from '@/modules/income'
-import type { OwnerId, PeriodPreset } from '@/core/types'
+import type { PayerId, PeriodPreset } from '@/core/types'
 import { cn } from '@/lib/utils'
 
 export default function IncomePage() {
   const [editingId, setEditingId]     = useState<string | null>(null)
   const [isAdding, setIsAdding]       = useState(false)
-  const [ownerFilter, setOwnerFilter] = useState<OwnerId | 'all'>('all')
+  const [payerFilter, setPayerFilter] = useState<PayerId | 'all'>('all')
 
   const transactions     = useTransactions()
   const users            = useUsers()
@@ -42,7 +42,6 @@ export default function IncomePage() {
   const spawnDueIncomes       = useAppStore((s) => s.spawnDueIncomes)
 
   // Custom date range popover state
-  const today = format(new Date(), 'yyyy-MM-dd')
   const existingCustom = activePeriod.preset === 'custom' && activePeriod.custom
   const [customOpen, setCustomOpen] = useState(false)
   const [dateA, setDateA] = useState(existingCustom ? activePeriod.custom!.start : '')
@@ -81,7 +80,7 @@ export default function IncomePage() {
 
   const filtered = filterTransactions(
     allIncome,
-    { search: '', labelIds: [], ownerId: ownerFilter, reviewed: 'all', projectId: undefined },
+    { search: '', labelIds: [], payerIds: payerFilter === 'all' ? [] : [payerFilter], appliedPersons: [], reviewed: 'all', projectId: undefined },
     dateRange,
   )
   const sorted = sortTransactions(filtered)
@@ -114,6 +113,7 @@ export default function IncomePage() {
       {/* ── Filter row ───────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-1.5 px-4 py-2.5 border-b bg-background overflow-x-auto scrollbar-none">
         {/* Period presets */}
+        <span className="flex-shrink-0 text-xs text-muted-foreground font-medium whitespace-nowrap">Time:</span>
         {PERIOD_PRESETS.map(({ value, label }) => (
           <button
             key={value}
@@ -143,11 +143,11 @@ export default function IncomePage() {
           <PopoverContent className="w-64 p-3 space-y-3" align="start">
             <div className="space-y-1.5">
               <Label className="text-xs">First date</Label>
-              <Input type="date" value={dateA} max={today} onChange={(e) => setDateA(e.target.value)} />
+              <Input type="date" value={dateA} onChange={(e) => setDateA(e.target.value)} />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Second date</Label>
-              <Input type="date" value={dateB} max={today} onChange={(e) => setDateB(e.target.value)} />
+              <Input type="date" value={dateB} onChange={(e) => setDateB(e.target.value)} />
             </div>
             <p className="text-xs text-muted-foreground">
               The earlier date becomes the start, the later becomes the end.
@@ -159,21 +159,22 @@ export default function IncomePage() {
         </Popover>
 
         <div className="w-px h-4 bg-border flex-shrink-0 mx-0.5" />
+        <span className="flex-shrink-0 text-xs text-muted-foreground font-medium whitespace-nowrap">Earner:</span>
 
-        {/* Owner pills */}
+        {/* Payer pills */}
         {([
           { value: 'all'       as const,   label: 'All' },
-          { value: users[0].id as OwnerId, label: users[0].name },
-          { value: users[1].id as OwnerId, label: users[1].name },
-          { value: 'shared'    as const,   label: 'Shared' },
-        ] as { value: OwnerId | 'all'; label: string }[]).map(({ value, label }) => (
+          { value: users[0].id as PayerId, label: users[0].avatarEmoji },
+          { value: users[1].id as PayerId, label: users[1].avatarEmoji },
+          { value: 'shared'    as const,   label: `${users[0].avatarEmoji}${users[1].avatarEmoji}` },
+        ] as { value: PayerId | 'all'; label: string }[]).map(({ value, label }) => (
           <button
             key={value}
             type="button"
-            onClick={() => setOwnerFilter(value)}
+            onClick={() => setPayerFilter(value)}
             className={cn(
               'flex-shrink-0 text-xs px-3 py-1.5 rounded-full font-medium transition-colors whitespace-nowrap',
-              ownerFilter === value
+              payerFilter === value
                 ? 'bg-primary text-primary-foreground'
                 : 'bg-secondary text-foreground hover:bg-[#e2e2e2]',
             )}
@@ -181,6 +182,19 @@ export default function IncomePage() {
             {label}
           </button>
         ))}
+
+        {/* Clear */}
+        <div className="w-px h-4 bg-border flex-shrink-0 mx-0.5" />
+        <button
+          type="button"
+          onClick={() => {
+            setActivePeriod({ preset: 'all_time' })
+            setPayerFilter('all')
+          }}
+          className="flex-shrink-0 text-xs text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap"
+        >
+          Clear
+        </button>
       </div>
 
       {/* ── Content ──────────────────────────────────────────────────────────── */}

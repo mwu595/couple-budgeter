@@ -130,7 +130,8 @@ export interface AppStore extends AppState {
 const DEFAULT_FILTERS: TransactionFilters = {
   search: '',
   labelIds: [],
-  ownerId: 'all',
+  payerIds: [],
+  appliedPersons: [],
   reviewed: 'all',
   projectId: undefined,
 }
@@ -624,7 +625,8 @@ export const useAppStore = create<AppStore>()(
               amount:            -(ri.amount),   // positive → negative (income convention)
               accountName:       ri.accountName,
               notes:             ri.notes,
-              ownerId:           ri.ownerId,
+              payerId:           ri.payerId,
+              appliedTo:         'shared' as const,
               labelIds:          [],
               reviewed:          false,
               recurringIncomeId: ri.id,

@@ -5,7 +5,7 @@ import { CheckCircle2 } from 'lucide-react'
 import { LabelBadge } from '@/components/LabelBadge'
 import { LabelPicker } from '@/components/LabelPicker'
 import { ProjectPicker } from '@/components/ProjectPicker'
-import { OwnerPicker } from '@/components/OwnerPicker'
+import { PayerPicker } from '@/components/PayerPicker'
 import { cn } from '@/lib/utils'
 import type { Transaction, Label, User, Project } from '@/core/types'
 import { formatCurrency } from '@/core/utils'
@@ -33,7 +33,7 @@ export function TransactionRow({
   selected = false,
   onToggleSelect,
 }: TransactionRowProps) {
-  const { id, date, merchant, amount, accountName, ownerId, labelIds, projectId, reviewed } = transaction
+  const { id, date, merchant, amount, payerId, appliedTo, labelIds, projectId, reviewed } = transaction
 
   const updateTransaction = useAppStore((s) => s.updateTransaction)
 
@@ -50,6 +50,21 @@ export function TransactionRow({
   }
 
   const isIncome = amount < 0
+
+  const earnedByLabel = payerId === 'shared'
+    ? `Earned by ${users[0].avatarEmoji}${users[1].avatarEmoji}`
+    : `Earned by ${users.find((u) => u.id === payerId)?.avatarEmoji ?? payerId}`
+
+  const payerEmoji = payerId === 'shared'
+    ? `${users[0].avatarEmoji}${users[1].avatarEmoji}`
+    : (users.find((u) => u.id === payerId)?.avatarEmoji ?? payerId)
+
+  const forEmoji = appliedTo === 'shared'
+    ? `${users[0].avatarEmoji}${users[1].avatarEmoji}`
+    : (users.find((u) => u.id === appliedTo)?.avatarEmoji ?? appliedTo)
+
+  const expenseMetaLabel = `${payerEmoji} paid, for ${forEmoji}`
+
   const rainbowGradient = 'linear-gradient(to right, rgba(239,68,68,0.15), rgba(249,115,22,0.15), rgba(234,179,8,0.15), rgba(34,197,94,0.15), rgba(59,130,246,0.15), rgba(139,92,246,0.15))'
 
   return (
@@ -79,10 +94,10 @@ export function TransactionRow({
           />
         </div>
       ) : (
-        <OwnerPicker
+        <PayerPicker
           users={users}
-          value={ownerId}
-          onChange={(newOwner) => updateTransaction(id, { ownerId: newOwner })}
+          value={payerId}
+          onChange={(newPayer) => updateTransaction(id, { payerId: newPayer })}
           triggerClassName="mt-0.5"
         />
       )}
@@ -111,10 +126,10 @@ export function TransactionRow({
           </span>
         </div>
 
-        {/* Row 2 left: date · account + labels + label picker */}
+        {/* Row 2 left: date · paid by · applied to + labels + label picker */}
         <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
           <span className="text-xs text-muted-foreground">
-            {format(parseISO(date), 'MMM d')} · {accountName}
+            {format(parseISO(date), 'MMM d')} · {isIncome ? earnedByLabel : expenseMetaLabel}
           </span>
 
           {!isIncome && txLabels.map((label) => (

@@ -1,10 +1,10 @@
 import { format, subDays } from 'date-fns'
 import { v4 as uuidv4 } from 'uuid'
-import type { Transaction, OwnerId, Label } from '@/core/types'
+import type { Transaction, PayerId, Label } from '@/core/types'
 
-// [daysAgo, merchant, amount, accountName, ownerId, labelSlots, reviewed]
+// [daysAgo, merchant, amount, accountName, payerId, labelSlots, reviewed]
 // labelSlots are 0-based indices into the labels array (Food=0, DiningOut=1, etc.)
-type TxTemplate = [number, string, number, string, OwnerId, number[], boolean]
+type TxTemplate = [number, string, number, string, PayerId, number[], boolean]
 
 const TEMPLATES: TxTemplate[] = [
   // ── Dining Out (slot 1) — 15 ─────────────────────────────────────────────
@@ -124,7 +124,7 @@ const TEMPLATES: TxTemplate[] = [
  */
 export function generateMockTransactions(labels: Label[]): Transaction[] {
   const today = new Date()
-  return TEMPLATES.map(([daysAgo, merchant, amount, accountName, ownerId, labelSlots, reviewed]) => {
+  return TEMPLATES.map(([daysAgo, merchant, amount, accountName, payerId, labelSlots, reviewed]) => {
     const date = format(subDays(today, daysAgo), 'yyyy-MM-dd')
     return {
       id: uuidv4(),
@@ -132,7 +132,8 @@ export function generateMockTransactions(labels: Label[]): Transaction[] {
       merchant,
       amount,
       accountName,
-      ownerId,
+      payerId,
+      appliedTo: 'shared' as const,
       labelIds: labelSlots.map((slot) => labels[slot].id),
       reviewed,
       createdAt: `${date}T12:00:00.000Z`,

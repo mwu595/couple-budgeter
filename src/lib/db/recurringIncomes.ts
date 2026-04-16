@@ -1,11 +1,11 @@
 import { createClient } from '@/lib/supabase/client'
-import type { RecurringIncome, RecurringFrequency, OwnerId } from '@/core/types'
+import type { RecurringIncome, RecurringFrequency, PayerId } from '@/core/types'
 
 interface RIRow {
   id: string
   name: string
   amount: string | number
-  owner_id: string
+  payer_id: string
   account_name: string
   notes: string | null
   frequency: string
@@ -19,7 +19,7 @@ function mapRow(row: RIRow): RecurringIncome {
     id:          row.id,
     name:        row.name,
     amount:      Number(row.amount),
-    ownerId:     row.owner_id as OwnerId,
+    payerId:     row.payer_id as PayerId,
     accountName: row.account_name,
     notes:       row.notes ?? undefined,
     frequency:   row.frequency as RecurringFrequency,
@@ -50,7 +50,7 @@ export async function insertRecurringIncome(
     household_id: householdId,
     name:         ri.name,
     amount:       ri.amount,
-    owner_id:     ri.ownerId,
+    payer_id:     ri.payerId,
     account_name: ri.accountName,
     notes:        ri.notes ?? null,
     frequency:    ri.frequency,
@@ -63,13 +63,13 @@ export async function insertRecurringIncome(
 
 export async function patchRecurringIncome(
   id: string,
-  updates: Partial<Pick<RecurringIncome, 'name' | 'amount' | 'ownerId' | 'accountName' | 'notes' | 'frequency' | 'startDate' | 'nextDate'>>,
+  updates: Partial<Pick<RecurringIncome, 'name' | 'amount' | 'payerId' | 'accountName' | 'notes' | 'frequency' | 'startDate' | 'nextDate'>>,
 ): Promise<void> {
   const supabase = createClient()
   const db: Record<string, unknown> = {}
   if (updates.name        !== undefined) db.name         = updates.name
   if (updates.amount      !== undefined) db.amount        = updates.amount
-  if (updates.ownerId     !== undefined) db.owner_id      = updates.ownerId
+  if (updates.payerId     !== undefined) db.payer_id      = updates.payerId
   if (updates.accountName !== undefined) db.account_name  = updates.accountName
   if (updates.notes       !== undefined) db.notes         = updates.notes ?? null
   if (updates.frequency   !== undefined) db.frequency     = updates.frequency

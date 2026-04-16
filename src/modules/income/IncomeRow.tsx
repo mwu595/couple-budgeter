@@ -2,7 +2,7 @@
 
 import { format, parseISO } from 'date-fns'
 import { RepeatIcon, CheckCircle2 } from 'lucide-react'
-import { OwnerPicker } from '@/components/OwnerPicker'
+import { PayerPicker } from '@/components/PayerPicker'
 import type { Transaction, User } from '@/core/types'
 import { formatCurrency } from '@/core/utils'
 import { useAppStore } from '@/core/store'
@@ -17,7 +17,11 @@ const RAINBOW_GRADIENT =
   'linear-gradient(to right, rgba(239,68,68,0.15), rgba(249,115,22,0.15), rgba(234,179,8,0.15), rgba(34,197,94,0.15), rgba(59,130,246,0.15), rgba(139,92,246,0.15))'
 
 export function IncomeRow({ transaction, users, onEdit }: IncomeRowProps) {
-  const { id, date, merchant, amount, accountName, ownerId, recurringIncomeId, reviewed } = transaction
+  const { id, date, merchant, amount, payerId, recurringIncomeId, reviewed } = transaction
+
+  const earnedByLabel = payerId === 'shared'
+    ? `Earned by ${users[0].avatarEmoji}${users[1].avatarEmoji}`
+    : `Earned by ${users.find((u) => u.id === payerId)?.avatarEmoji ?? payerId}`
   const updateTransaction = useAppStore((s) => s.updateTransaction)
 
   return (
@@ -30,11 +34,11 @@ export function IncomeRow({ transaction, users, onEdit }: IncomeRowProps) {
       onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') onEdit(id) }}
       aria-label={`Edit income: ${merchant}`}
     >
-      {/* Owner picker */}
-      <OwnerPicker
+      {/* Payer picker */}
+      <PayerPicker
         users={users}
-        value={ownerId}
-        onChange={(newOwner) => updateTransaction(id, { ownerId: newOwner })}
+        value={payerId}
+        onChange={(newPayer) => updateTransaction(id, { payerId: newPayer })}
         triggerClassName="mt-0.5"
       />
 
@@ -64,10 +68,10 @@ export function IncomeRow({ transaction, users, onEdit }: IncomeRowProps) {
           </div>
         </div>
 
-        {/* Bottom row: date · account */}
+        {/* Bottom row: date · earned by */}
         <div className="mt-0.5">
           <span className="text-xs text-muted-foreground">
-            {format(parseISO(date), 'MMM d')} · {accountName}
+            {format(parseISO(date), 'MMM d')} · {earnedByLabel}
           </span>
         </div>
       </div>

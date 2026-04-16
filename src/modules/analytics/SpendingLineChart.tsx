@@ -72,9 +72,9 @@ function buildChartData(
     if (tx.amount <= 0) continue
     const { label, sortKey } = toBucket(tx.date, granularity)
     const prev = map.get(sortKey) ?? { label, sortKey, userA: 0, userB: 0, shared: 0 }
-    if (tx.ownerId === users[0].id) {
+    if (tx.payerId === users[0].id) {
       map.set(sortKey, { ...prev, userA: prev.userA + tx.amount })
-    } else if (tx.ownerId === users[1].id) {
+    } else if (tx.payerId === users[1].id) {
       map.set(sortKey, { ...prev, userB: prev.userB + tx.amount })
     } else {
       map.set(sortKey, { ...prev, shared: prev.shared + tx.amount })

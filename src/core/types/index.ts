@@ -10,8 +10,8 @@ export interface User {
   avatarEmoji: string
 }
 
-// Owner of a transaction — one of the two users, or shared between both
-export type OwnerId = UserId | 'shared'
+// Payer of a transaction — one of the two users, or shared between both
+export type PayerId = UserId | 'shared'
 
 export interface Label {
   id: string         // e.g. 'lbl_01' for mock data, uuid in v2
@@ -42,7 +42,8 @@ export interface Transaction {
   amount: number     // positive = expense, negative = refund / income
   accountName: string // free text in MVP; will map to account id in v2
   notes?: string
-  ownerId: OwnerId
+  payerId: PayerId
+  appliedTo: UserId | 'shared'  // who this expense is for: a specific user or shared between both
   labelIds: string[] // references Label.id — one transaction can have multiple labels
   projectId?: string // references Project.id — optional, one project per transaction
   reviewed: boolean
@@ -58,7 +59,7 @@ export interface RecurringIncome {
   id: string
   name: string          // display label, e.g. "Company Paycheck"
   amount: number        // positive; stored as negative in spawned transactions
-  ownerId: OwnerId
+  payerId: PayerId
   accountName: string
   notes?: string
   frequency: RecurringFrequency
@@ -91,11 +92,12 @@ export interface ActivePeriod {
 // ─── Transaction feed filters ───────────────────────────────────────────────
 
 export interface TransactionFilters {
-  search: string           // matches merchant name or notes
-  labelIds: string[]       // empty = show all labels
-  ownerId: OwnerId | 'all' // 'all' = show all owners
+  search: string                        // matches merchant name or notes
+  labelIds: string[]                    // empty = show all labels
+  payerIds: PayerId[]                   // empty = All; otherwise OR-match across selected payers
+  appliedPersons: (UserId | 'shared')[] // empty = All; matches tx.appliedTo directly
   reviewed: 'all' | 'reviewed' | 'unreviewed'
-  projectId: string | undefined // undefined = show all projects
+  projectId: string | undefined         // undefined = show all projects
 }
 
 // ─── Root application state ─────────────────────────────────────────────────

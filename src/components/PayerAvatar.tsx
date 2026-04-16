@@ -1,17 +1,17 @@
 'use client'
 
-import type { OwnerId, User } from '@/core/types'
+import type { PayerId, User } from '@/core/types'
 
-interface OwnerAvatarProps {
-  ownerId: OwnerId
+interface PayerAvatarProps {
+  payerId: PayerId
   users: [User, User]
   size?: 'sm' | 'md'
 }
 
-export function OwnerAvatar({ ownerId, users, size = 'md' }: OwnerAvatarProps) {
+export function PayerAvatar({ payerId, users, size = 'md' }: PayerAvatarProps) {
   const sizeClasses = size === 'sm' ? 'w-6 h-6 text-xs' : 'w-8 h-8 text-sm'
 
-  if (ownerId === 'shared') {
+  if (payerId === 'shared') {
     // Overlapping duo avatars for shared
     return (
       <span
@@ -28,7 +28,7 @@ export function OwnerAvatar({ ownerId, users, size = 'md' }: OwnerAvatarProps) {
     )
   }
 
-  const user = ownerId === 'user_a' ? users[0] : users[1]
+  const user = payerId === 'user_a' ? users[0] : users[1]
 
   return (
     <span

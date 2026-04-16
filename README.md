@@ -66,8 +66,6 @@ Open `http://localhost:xxxx` (Next.js will tell you the port).
 
 | File | Purpose |
 |------|---------|
-| `PRD.md` | Full product requirements and feature roadmap |
 | `ARCHITECTURE.md` | Module structure, dependency rules, folder layout |
-| `BUILD_PLAN.md` | Step-by-step build history with completion status |
 | `CHANGELOG.md` | Version history and release notes |
-| `CLAUDE.md` | Instructions for Claude Code when working in this repo |
+| `DESIGN.md` | Visual design system and UI conventions |

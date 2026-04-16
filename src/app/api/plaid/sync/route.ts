@@ -84,7 +84,8 @@ export async function POST() {
           amount:               tx.amount,
           account_name:         accountNameMap.get(tx.account_id) ?? tx.account_id,
           notes:                null,
-          owner_id:             member.slot,
+          payer_id:             member.slot,
+          is_personal:          false,
           reviewed:             false,
           plaid_transaction_id: tx.transaction_id,
         })

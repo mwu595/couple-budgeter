@@ -74,9 +74,9 @@ export function RecurringIncomeManager({
     setDeletingId(null)
   }
 
-  function ownerLabel(ri: RecurringIncome): string {
-    if (ri.ownerId === 'shared') return 'Shared'
-    return users.find((u) => u.id === ri.ownerId)?.name ?? ri.ownerId
+  function payerLabel(ri: RecurringIncome): string {
+    if (ri.payerId === 'shared') return 'Shared'
+    return users.find((u) => u.id === ri.payerId)?.name ?? ri.payerId
   }
 
   return (
@@ -139,7 +139,7 @@ export function RecurringIncomeManager({
                 </div>
                 <div className="flex justify-between">
                   <span>Owner</span>
-                  <span className="text-foreground font-medium">{ownerLabel(ri)}</span>
+                  <span className="text-foreground font-medium">{payerLabel(ri)}</span>
                 </div>
               </div>
 

@@ -6,10 +6,10 @@ import { Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { OwnerPicker } from '@/components/OwnerPicker'
+import { PayerPicker } from '@/components/PayerPicker'
 import { AccountPicker } from '@/components/AccountPicker'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
-import type { Transaction, OwnerId } from '@/core/types'
+import type { Transaction, PayerId } from '@/core/types'
 import { useAppStore, useAccounts, useUsers } from '@/core/store'
 
 interface IncomeFormProps {
@@ -24,7 +24,7 @@ type FormValues = {
   amount:      string   // positive; stored as negative
   accountName: string
   notes:       string
-  ownerId:     OwnerId
+  payerId:     PayerId
   reviewed:    boolean
 }
 
@@ -36,7 +36,7 @@ function getDefaults(tx?: Transaction): FormValues {
       amount:      String(Math.abs(tx.amount)),  // show positive to user
       accountName: tx.accountName,
       notes:       tx.notes ?? '',
-      ownerId:     tx.ownerId,
+      payerId:     tx.payerId,
       reviewed:    tx.reviewed,
     }
   }
@@ -46,7 +46,7 @@ function getDefaults(tx?: Transaction): FormValues {
     amount:      '',
     accountName: '',
     notes:       '',
-    ownerId:     'shared',
+    payerId:     'shared',
     reviewed:    false,
   }
 }
@@ -96,9 +96,9 @@ export function IncomeForm({ transaction, onSuccess, onCancel }: IncomeFormProps
     }
 
     if (isEditing && transaction) {
-      updateTransaction(transaction.id, { ...data, ownerId: values.ownerId })
+      updateTransaction(transaction.id, { ...data, payerId: values.payerId })
     } else {
-      addTransaction({ ...data, ownerId: values.ownerId, labelIds: [] })
+      addTransaction({ ...data, payerId: values.payerId, appliedTo: 'shared', labelIds: [] })
     }
     onSuccess()
   }
@@ -167,20 +167,20 @@ export function IncomeForm({ transaction, onSuccess, onCancel }: IncomeFormProps
         {errors.accountName && <p className="text-xs text-destructive">{errors.accountName}</p>}
       </div>
 
-      {/* Owner */}
+      {/* Earner */}
       <div className="space-y-1.5">
-        <Label>Owner</Label>
+        <Label>Earner</Label>
         <div className="flex items-center gap-2">
-          <OwnerPicker
+          <PayerPicker
             users={users}
-            value={values.ownerId}
-            onChange={(id) => field('ownerId', id)}
+            value={values.payerId}
+            onChange={(id) => field('payerId', id)}
             triggerClassName="border border-border"
           />
           <span className="text-sm text-muted-foreground">
-            {values.ownerId === 'shared'
+            {values.payerId === 'shared'
               ? 'Shared'
-              : users.find((u) => u.id === values.ownerId)?.name}
+              : users.find((u) => u.id === values.payerId)?.name}
           </span>
         </div>
       </div>

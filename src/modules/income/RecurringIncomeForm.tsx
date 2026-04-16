@@ -5,10 +5,10 @@ import { format } from 'date-fns'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { OwnerPicker } from '@/components/OwnerPicker'
+import { PayerPicker } from '@/components/PayerPicker'
 import { AccountPicker } from '@/components/AccountPicker'
 import { cn } from '@/lib/utils'
-import type { RecurringIncome, RecurringFrequency, OwnerId } from '@/core/types'
+import type { RecurringIncome, RecurringFrequency, PayerId } from '@/core/types'
 import { useAccounts, useUsers } from '@/core/store'
 
 interface RecurringIncomeFormProps {
@@ -24,7 +24,7 @@ type FormValues = {
   startDate:   string
   accountName: string
   notes:       string
-  ownerId:     OwnerId
+  payerId:     PayerId
 }
 
 const FREQUENCY_OPTIONS: { value: RecurringFrequency; label: string }[] = [
@@ -43,7 +43,7 @@ function getDefaults(ri?: RecurringIncome): FormValues {
       startDate:   ri.startDate,
       accountName: ri.accountName,
       notes:       ri.notes ?? '',
-      ownerId:     ri.ownerId,
+      payerId:     ri.payerId,
     }
   }
   return {
@@ -53,7 +53,7 @@ function getDefaults(ri?: RecurringIncome): FormValues {
     startDate:   format(new Date(), 'yyyy-MM-dd'),
     accountName: '',
     notes:       '',
-    ownerId:     'shared',
+    payerId:     'shared',
   }
 }
 
@@ -95,7 +95,7 @@ export function RecurringIncomeForm({ recurringIncome, onSuccess, onCancel }: Re
       nextDate:    recurringIncome?.nextDate ?? values.startDate,
       accountName: values.accountName.trim(),
       notes:       values.notes.trim() || undefined,
-      ownerId:     values.ownerId,
+      payerId:     values.payerId,
     })
   }
 
@@ -179,20 +179,20 @@ export function RecurringIncomeForm({ recurringIncome, onSuccess, onCancel }: Re
         {errors.accountName && <p className="text-xs text-destructive">{errors.accountName}</p>}
       </div>
 
-      {/* Owner */}
+      {/* Earner */}
       <div className="space-y-1.5">
-        <Label>Owner</Label>
+        <Label>Earner</Label>
         <div className="flex items-center gap-2">
-          <OwnerPicker
+          <PayerPicker
             users={users}
-            value={values.ownerId}
-            onChange={(id) => field('ownerId', id)}
+            value={values.payerId}
+            onChange={(id) => field('payerId', id)}
             triggerClassName="border border-border"
           />
           <span className="text-sm text-muted-foreground">
-            {values.ownerId === 'shared'
+            {values.payerId === 'shared'
               ? 'Shared'
-              : users.find((u) => u.id === values.ownerId)?.name}
+              : users.find((u) => u.id === values.payerId)?.name}
           </span>
         </div>
       </div>

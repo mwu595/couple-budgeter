@@ -11,7 +11,7 @@ import {
 } from '@/components/ui/dialog'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { LabelPicker } from '@/components/LabelPicker'
-import { OwnerPicker } from '@/components/OwnerPicker'
+import { PayerPicker } from '@/components/PayerPicker'
 import { ProjectPicker } from '@/components/ProjectPicker'
 import {
   useTransactions,
@@ -24,7 +24,7 @@ import {
 } from '@/core/store'
 import { filterTransactions, sortTransactions, getDateRangeForPeriod, exportTransactionsToCsv } from '@/core/utils'
 import { TransactionFeed, TransactionFilters, TransactionForm } from '@/modules/transactions'
-import type { OwnerId } from '@/core/types'
+import type { PayerId } from '@/core/types'
 
 export default function TransactionsPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -101,10 +101,10 @@ export default function TransactionsPage() {
       ? selectedTransactions[0].projectId
       : undefined
 
-  const commonOwnerId: OwnerId =
+  const commonPayerId: PayerId =
     selectedTransactions.length > 0 &&
-    selectedTransactions.every((tx) => tx.ownerId === selectedTransactions[0].ownerId)
-      ? selectedTransactions[0].ownerId
+    selectedTransactions.every((tx) => tx.payerId === selectedTransactions[0].payerId)
+      ? selectedTransactions[0].payerId
       : 'shared'
 
   // ── Bulk operations ────────────────────────────────────────────────────────
@@ -121,9 +121,9 @@ export default function TransactionsPage() {
     }
   }
 
-  function handleBulkSetOwner(ownerId: OwnerId) {
+  function handleBulkSetPayer(payerId: PayerId) {
     for (const id of selectedIds) {
-      updateTransaction(id, { ownerId })
+      updateTransaction(id, { payerId })
     }
   }
 
@@ -205,11 +205,11 @@ export default function TransactionsPage() {
               />
             )}
 
-            {/* Owner */}
-            <OwnerPicker
+            {/* Payer */}
+            <PayerPicker
               users={users}
-              value={commonOwnerId}
-              onChange={handleBulkSetOwner}
+              value={commonPayerId}
+              onChange={handleBulkSetPayer}
               triggerClassName="inline-flex items-center justify-center px-2 py-1.5 rounded-md border border-border text-sm hover:bg-accent transition-colors w-auto h-auto"
             />
 

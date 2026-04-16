@@ -4,21 +4,21 @@ import { useState } from 'react'
 import { Check } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
-import type { OwnerId, User } from '@/core/types'
+import type { PayerId, User } from '@/core/types'
 
-interface OwnerPickerProps {
+interface PayerPickerProps {
   users: [User, User]
-  value: OwnerId
-  onChange: (ownerId: OwnerId) => void
+  value: PayerId
+  onChange: (payerId: PayerId) => void
   triggerClassName?: string
 }
 
-type OwnerOption = { id: OwnerId; label: string; emoji: string }
+type PayerOption = { id: PayerId; label: string; emoji: string }
 
-export function OwnerPicker({ users, value, onChange, triggerClassName }: OwnerPickerProps) {
+export function PayerPicker({ users, value, onChange, triggerClassName }: PayerPickerProps) {
   const [open, setOpen] = useState(false)
 
-  const options: OwnerOption[] = [
+  const options: PayerOption[] = [
     { id: users[0].id, label: users[0].name, emoji: users[0].avatarEmoji },
     { id: users[1].id, label: users[1].name, emoji: users[1].avatarEmoji },
     { id: 'shared',    label: 'Shared',       emoji: '♾' },
@@ -34,7 +34,7 @@ export function OwnerPicker({ users, value, onChange, triggerClassName }: OwnerP
           'w-8 h-8 rounded-full bg-muted flex items-center justify-center text-sm select-none transition-opacity hover:opacity-80',
           triggerClassName
         )}
-        aria-label={`Owner: ${current?.label ?? 'Unknown'}`}
+        aria-label={`Payer: ${current?.label ?? 'Unknown'}`}
       >
         {value === 'shared' ? (
           <span className="text-xs">{users[0].avatarEmoji}{users[1].avatarEmoji}</span>
@@ -48,7 +48,7 @@ export function OwnerPicker({ users, value, onChange, triggerClassName }: OwnerP
         align="start"
         onClick={(e) => e.stopPropagation()}
       >
-        <p className="text-xs font-medium text-muted-foreground px-2 py-1 mb-0.5">Assign to</p>
+        <p className="text-xs font-medium text-muted-foreground px-2 py-1 mb-0.5">Assign payer</p>
         {options.map((option) => (
           <button
             key={option.id}

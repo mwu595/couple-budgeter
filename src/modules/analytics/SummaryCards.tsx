@@ -49,12 +49,12 @@ export function SummaryCards({
       {/* By Person */}
       <Card title="By Person">
         <div className="space-y-1.5">
-          {spendByOwner.map(({ ownerId, name, total }) => (
-            <div key={ownerId} className="flex items-center justify-between gap-2">
+          {spendByOwner.map(({ payerId, name, total }) => (
+            <div key={payerId} className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-1.5 min-w-0">
                 <span
                   className="w-2 h-2 rounded-full shrink-0"
-                  style={{ backgroundColor: OWNER_COLORS[ownerId] ?? '#888784' }}
+                  style={{ backgroundColor: OWNER_COLORS[payerId] ?? '#888784' }}
                 />
                 <span className="text-xs text-muted-foreground truncate">{name}</span>
               </div>

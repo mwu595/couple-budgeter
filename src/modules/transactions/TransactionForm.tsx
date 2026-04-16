@@ -11,7 +11,7 @@ import { LabelPicker } from '@/components/LabelPicker'
 import { AccountPicker } from '@/components/AccountPicker'
 import { ProjectPicker } from '@/components/ProjectPicker'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
-import type { Transaction, OwnerId } from '@/core/types'
+import type { Transaction, PayerId, UserId } from '@/core/types'
 import { useAppStore, useLabels, useUsers, useAccounts, useProjects } from '@/core/store'
 import { cn } from '@/lib/utils'
 
@@ -29,7 +29,8 @@ type FormValues = {
   notes: string
   reviewed: boolean
   labelIds: string[]
-  ownerId: OwnerId | ''
+  payerId: PayerId | ''
+  forPersonId: UserId | 'shared' | ''  // '' = unset; 'shared' → isPersonal: false; UserId → isPersonal: true
   projectId: string | undefined
 }
 
@@ -43,7 +44,8 @@ function getDefaults(tx?: Transaction): FormValues {
       notes:       tx.notes ?? '',
       reviewed:    tx.reviewed,
       labelIds:    tx.labelIds,
-      ownerId:     tx.ownerId,
+      payerId:     tx.payerId,
+      forPersonId: tx.appliedTo,
       projectId:   tx.projectId,
     }
   }
@@ -55,7 +57,8 @@ function getDefaults(tx?: Transaction): FormValues {
     notes:       '',
     reviewed:    false,
     labelIds:    [],
-    ownerId:     '',
+    payerId:     '',
+    forPersonId: '',
     projectId:   undefined,
   }
 }
@@ -86,7 +89,8 @@ export function TransactionForm({ transaction, onSuccess, onCancel }: Transactio
     if (!values.merchant.trim())    next.merchant    = 'Required'
     if (!values.date)               next.date        = 'Required'
     if (!values.accountName.trim()) next.accountName = 'Required'
-    if (!values.ownerId)            next.ownerId     = 'Required'
+    if (!values.payerId)            next.payerId     = 'Required'
+    if (!values.forPersonId)        next.forPersonId = 'Required'
     const parsed = parseFloat(values.amount)
     if (!values.amount || isNaN(parsed)) next.amount = 'Enter a valid number'
     setErrors(next)
@@ -108,11 +112,12 @@ export function TransactionForm({ transaction, onSuccess, onCancel }: Transactio
       ...(values.notes.trim() ? { notes: values.notes.trim() } : {}),
     }
 
-    const ownerId = values.ownerId as OwnerId
+    const payerId = values.payerId as PayerId
+    const appliedTo = values.forPersonId as UserId | 'shared'
     if (isEditing && transaction) {
-      updateTransaction(transaction.id, { ...data, labelIds: values.labelIds, ownerId })
+      updateTransaction(transaction.id, { ...data, labelIds: values.labelIds, payerId, appliedTo })
     } else {
-      addTransaction({ ...data, ownerId, labelIds: values.labelIds })
+      addTransaction({ ...data, payerId, appliedTo, labelIds: values.labelIds })
     }
     onSuccess()
   }
@@ -189,32 +194,59 @@ export function TransactionForm({ transaction, onSuccess, onCancel }: Transactio
         )}
       </div>
 
-      {/* Owner */}
-      <div className="space-y-1.5">
-        <Label>Owner <span className="text-destructive">*</span></Label>
-        <div className="flex gap-2">
-          {([
-            { id: users[0].id, label: users[0].name,  emoji: users[0].avatarEmoji },
-            { id: users[1].id, label: users[1].name,  emoji: users[1].avatarEmoji },
-            { id: 'shared',    label: 'Shared',        emoji: '♾' },
-          ] as { id: OwnerId; label: string; emoji: string }[]).map((opt) => (
-            <button
-              key={opt.id}
-              type="button"
-              onClick={() => field('ownerId', opt.id)}
-              className={cn(
-                'flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm transition-colors',
-                values.ownerId === opt.id
-                  ? 'bg-primary text-primary-foreground border-primary'
-                  : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'
-              )}
-            >
-              <span>{opt.emoji}</span>
-              <span>{opt.label}</span>
-            </button>
-          ))}
+      {/* Who pays + For — side by side */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-1.5">
+          <Label>Who Pays <span className="text-destructive">*</span></Label>
+          <div className="flex gap-2 flex-wrap">
+            {([
+              { id: users[0].id, emoji: users[0].avatarEmoji },
+              { id: users[1].id, emoji: users[1].avatarEmoji },
+              { id: 'shared',    emoji: `${users[0].avatarEmoji}${users[1].avatarEmoji}` },
+            ] as { id: PayerId; emoji: string }[]).map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => field('payerId', opt.id)}
+                className={cn(
+                  'flex items-center px-3 py-1.5 rounded-full border text-sm transition-colors',
+                  values.payerId === opt.id
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'
+                )}
+              >
+                {opt.emoji}
+              </button>
+            ))}
+          </div>
+          {errors.payerId && <p className="text-xs text-destructive">{errors.payerId}</p>}
         </div>
-        {errors.ownerId && <p className="text-xs text-destructive">{errors.ownerId}</p>}
+
+        <div className="space-y-1.5">
+          <Label>For Who <span className="text-destructive">*</span></Label>
+          <div className="flex gap-2 flex-wrap">
+            {([
+              { id: users[0].id, emoji: users[0].avatarEmoji },
+              { id: users[1].id, emoji: users[1].avatarEmoji },
+              { id: 'shared',    emoji: `${users[0].avatarEmoji}${users[1].avatarEmoji}` },
+            ] as { id: UserId | 'shared'; emoji: string }[]).map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => field('forPersonId', opt.id)}
+                className={cn(
+                  'flex items-center px-3 py-1.5 rounded-full border text-sm transition-colors',
+                  values.forPersonId === opt.id
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground/40'
+                )}
+              >
+                {opt.emoji}
+              </button>
+            ))}
+          </div>
+          {errors.forPersonId && <p className="text-xs text-destructive">{errors.forPersonId}</p>}
+        </div>
       </div>
 
       {/* Notes */}
