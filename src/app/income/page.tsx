@@ -35,11 +35,12 @@ export default function IncomePage() {
   const activePeriod     = useActivePeriod()
   const recurringIncomes = useRecurringIncomes()
 
-  const setActivePeriod       = useAppStore((s) => s.setActivePeriod)
-  const addRecurringIncome    = useAppStore((s) => s.addRecurringIncome)
-  const updateRecurringIncome = useAppStore((s) => s.updateRecurringIncome)
-  const deleteRecurringIncome = useAppStore((s) => s.deleteRecurringIncome)
-  const spawnDueIncomes       = useAppStore((s) => s.spawnDueIncomes)
+  const setActivePeriod         = useAppStore((s) => s.setActivePeriod)
+  const addRecurringIncome      = useAppStore((s) => s.addRecurringIncome)
+  const updateRecurringIncome   = useAppStore((s) => s.updateRecurringIncome)
+  const deleteRecurringIncome   = useAppStore((s) => s.deleteRecurringIncome)
+  const clearAllRecurringData   = useAppStore((s) => s.clearAllRecurringData)
+  const spawnDueIncomes         = useAppStore((s) => s.spawnDueIncomes)
 
   // Custom date range popover state
   const existingCustom = activePeriod.preset === 'custom' && activePeriod.custom
@@ -210,6 +211,7 @@ export default function IncomePage() {
             onAdd={addRecurringIncome}
             onUpdate={(id, data) => updateRecurringIncome(id, data)}
             onDelete={deleteRecurringIncome}
+            onClearAll={clearAllRecurringData}
           />
         </div>
 

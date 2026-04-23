@@ -65,6 +65,7 @@ export async function insertTransaction(
     payer_id: tx.payerId,
     applied_to: tx.appliedTo,
     reviewed: tx.reviewed,
+    project_id: tx.projectId ?? null,
     created_at: tx.createdAt,
     recurring_income_id: tx.recurringIncomeId ?? null,
   })
@@ -97,6 +98,7 @@ export async function insertTransactions(
       payer_id: tx.payerId,
       applied_to: tx.appliedTo,
       reviewed: tx.reviewed,
+      project_id: tx.projectId ?? null,
       created_at: tx.createdAt,
       recurring_income_id: tx.recurringIncomeId ?? null,
     })),
@@ -181,6 +183,17 @@ export async function renameTransactionAccount(
     .update({ account_name: newName })
     .eq('household_id', householdId)
     .eq('account_name', oldName)
+  if (error) throw error
+}
+
+export async function removeRecurringIncomeTransactions(householdId: string): Promise<void> {
+  const supabase = createClient()
+  const { error } = await supabase
+    .from('transactions')
+    .delete()
+    .eq('household_id', householdId)
+    .not('recurring_income_id', 'is', null)
+    .eq('reviewed', false)
   if (error) throw error
 }
 

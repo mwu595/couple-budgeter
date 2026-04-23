@@ -18,9 +18,10 @@ import { RecurringIncomeForm } from './RecurringIncomeForm'
 interface RecurringIncomeManagerProps {
   recurringIncomes: RecurringIncome[]
   users: [User, User]
-  onAdd:    (data: Omit<RecurringIncome, 'id' | 'createdAt'>) => void
-  onUpdate: (id: string, data: Omit<RecurringIncome, 'id' | 'createdAt'>) => void
-  onDelete: (id: string) => void
+  onAdd:      (data: Omit<RecurringIncome, 'id' | 'createdAt'>) => void
+  onUpdate:   (id: string, data: Omit<RecurringIncome, 'id' | 'createdAt'>) => void
+  onDelete:   (id: string) => void
+  onClearAll: () => void
 }
 
 const FREQUENCY_LABELS: Record<RecurringFrequency, string> = {
@@ -36,10 +37,12 @@ export function RecurringIncomeManager({
   onAdd,
   onUpdate,
   onDelete,
+  onClearAll,
 }: RecurringIncomeManagerProps) {
-  const [formOpen, setFormOpen]       = useState(false)
-  const [editingId, setEditingId]     = useState<string | null>(null)
-  const [deletingId, setDeletingId]   = useState<string | null>(null)
+  const [formOpen, setFormOpen]         = useState(false)
+  const [editingId, setEditingId]       = useState<string | null>(null)
+  const [deletingId, setDeletingId]     = useState<string | null>(null)
+  const [clearConfirmOpen, setClearConfirmOpen] = useState(false)
 
   const editingItem = editingId
     ? recurringIncomes.find((r) => r.id === editingId)
@@ -87,10 +90,20 @@ export function RecurringIncomeManager({
           <p className="text-sm text-muted-foreground">
             {recurringIncomes.length} recurring income{recurringIncomes.length !== 1 ? 's' : ''}
           </p>
-          <Button size="sm" onClick={openAdd}>
-            <Plus className="w-4 h-4 mr-1.5" />
-            Add recurring
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={() => setClearConfirmOpen(true)}
+            >
+              Clear all
+            </Button>
+            <Button size="sm" onClick={openAdd}>
+              <Plus className="w-4 h-4 mr-1.5" />
+              Add recurring
+            </Button>
+          </div>
         </div>
       )}
 
@@ -194,6 +207,17 @@ export function RecurringIncomeManager({
         destructive
         onConfirm={handleConfirmDelete}
         onCancel={() => setDeletingId(null)}
+      />
+
+      {/* Clear all confirm */}
+      <ConfirmDialog
+        open={clearConfirmOpen}
+        title="Clear all recurring income?"
+        description="This removes all recurring income definitions and any unreviewed income entries they spawned. Reviewed entries are kept. This cannot be undone."
+        confirmLabel="Clear all"
+        destructive
+        onConfirm={() => { onClearAll(); setClearConfirmOpen(false) }}
+        onCancel={() => setClearConfirmOpen(false)}
       />
     </div>
   )

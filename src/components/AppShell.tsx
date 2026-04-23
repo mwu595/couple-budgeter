@@ -3,7 +3,6 @@
 import { useEffect } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { AppNav } from '@/components/AppNav'
-import { SampleDataBanner } from '@/components/SampleDataBanner'
 import { createClient } from '@/lib/supabase/client'
 
 const SHELL_LESS_PATHS = ['/login', '/signup']
@@ -32,7 +31,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-screen">
       <AppNav />
       <main className="flex-1 min-w-0 pb-24 md:pb-0 overflow-auto">
-        <SampleDataBanner />
         {children}
       </main>
     </div>

@@ -1,6 +1,6 @@
 # Couple Budgeter
 
-Money is the #1 thing couples fight about. This app won't fix your relationship, but it will at least make sure you're both looking at the same numbers.
+This app won't fix your relationship, but it will at least make sure you're both looking at the same numbers.
 
 **Couple Budgeter** is a shared expense tracker built specifically for two people who want to split financial visibility without splitting their sanity. Track expenses individually or as a pair, categorize spending, watch your habits in charts that don't lie, and sync it all to the cloud so neither person can claim ignorance.
 

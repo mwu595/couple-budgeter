@@ -86,10 +86,9 @@ export function TransactionForm({ transaction, onSuccess, onCancel }: Transactio
 
   function validate(): boolean {
     const next: Partial<Record<keyof FormValues, string>> = {}
-    if (!values.merchant.trim())    next.merchant    = 'Required'
-    if (!values.date)               next.date        = 'Required'
-    if (!values.accountName.trim()) next.accountName = 'Required'
-    if (!values.payerId)            next.payerId     = 'Required'
+    if (!values.merchant.trim()) next.merchant    = 'Required'
+    if (!values.date)            next.date        = 'Required'
+    if (!values.payerId)         next.payerId     = 'Required'
     if (!values.forPersonId)        next.forPersonId = 'Required'
     const parsed = parseFloat(values.amount)
     if (!values.amount || isNaN(parsed)) next.amount = 'Enter a valid number'
@@ -180,20 +179,6 @@ export function TransactionForm({ transaction, onSuccess, onCancel }: Transactio
         </div>
       </div>
 
-      {/* Account */}
-      <div className="space-y-1.5">
-        <Label>Account <span className="text-destructive">*</span></Label>
-        <AccountPicker
-          accounts={allAccounts}
-          value={values.accountName}
-          onChange={(name) => field('accountName', name)}
-          hasError={Boolean(errors.accountName)}
-        />
-        {errors.accountName && (
-          <p className="text-xs text-destructive">{errors.accountName}</p>
-        )}
-      </div>
-
       {/* Who pays + For — side by side */}
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
@@ -247,6 +232,17 @@ export function TransactionForm({ transaction, onSuccess, onCancel }: Transactio
           </div>
           {errors.forPersonId && <p className="text-xs text-destructive">{errors.forPersonId}</p>}
         </div>
+      </div>
+
+      {/* Account */}
+      <div className="space-y-1.5">
+        <Label>Account <span className="text-muted-foreground font-normal">(optional)</span></Label>
+        <AccountPicker
+          accounts={allAccounts}
+          value={values.accountName}
+          onChange={(name) => field('accountName', name)}
+          hasError={Boolean(errors.accountName)}
+        />
       </div>
 
       {/* Notes */}

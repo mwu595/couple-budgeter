@@ -85,3 +85,12 @@ export async function removeRecurringIncome(id: string): Promise<void> {
   const { error } = await supabase.from('recurring_incomes').delete().eq('id', id)
   if (error) throw error
 }
+
+export async function removeAllRecurringIncomes(householdId: string): Promise<void> {
+  const supabase = createClient()
+  const { error } = await supabase
+    .from('recurring_incomes')
+    .delete()
+    .eq('household_id', householdId)
+  if (error) throw error
+}

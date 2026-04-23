@@ -2,80 +2,57 @@
 
 ---
 
+## [0.7.2] — 2026-04-22
+
+Account field is now optional and moved below "Who Pays" — because you shouldn't need to know which credit card you used to log a coffee. Fixed a recurring income ghost bug where deleted schedules kept haunting you like an ex who still watches your Stories. "Clear all" respects reviewed entries like a responsible adult.
+
+---
+
 ## [0.7.1] — 2026-04-15
 
-- **Multi-select Payer/Applied To**: toggle-based; empty = All; emoji avatars in pills and row metadata
-- **Transaction form**: "Who Pays" + "For Who" emoji selectors replace payer picker + checkbox
-- **`applied_to`**: replaces `is_personal` boolean; stores `user_a | user_b | shared` directly
-- **Filter bar**: group labels, Status dropdown, Clear button on all pages
-- **Row metadata**: `🧑 paid, for 👩` / `Earned by 🧑`; future dates unblocked in date pickers
-- **SQL**: 8 migrations → `001_schema.sql` + `002_plaid.sql`
+Payer and "for who" got emoji pills. Filter bars got labels, a status dropdown, and a Clear button. Rows now show the full receipts of blame in plain emoji. Past SQL migrations consolidated so future archaeologists have less to dig through.
 
 ---
 
 ## [0.7.0] — 2026-04-15
 
-- **Owner → Payer**: full rename across UI, TypeScript (`OwnerId` → `PayerId`), and DB (`owner_id` → `payer_id`)
-- **Personal Expense flag**: checkbox on transaction form when a specific payer is selected; filters `is_personal` on Dashboard and Expenses
-- **Applied Person filter**: separate filter group from Payer; personal transactions count toward payer, non-personal toward Shared
-- **CSV**: "Owner" → "Payer"; new "Personal" column
+Big rename: "Owner" is now "Payer" everywhere — TypeScript, DB, UI, CSV. Added a Personal Expense flag so you can quietly log things without implicating your partner. The database column had its identity crisis resolved.
 
 ---
 
 ## [0.6.0] — 2026-04-11
 
-Comprehensive UI overhaul.
-
-- **Design system**: Uber-inspired black/white; cards standardized to `border + shadow + rounded-xl`; buttons `rounded-full`; inputs `border-foreground`
-- **Filter bars**: single scrollable row with divider-separated groups; period → custom range → payer → reviewed → projects → labels → search
-- **Income page**: History and Recurring always visible as stacked cards; no more toggle
-- **TransactionRow**: CSS grid layout; project indicator on right; inline label/project pickers on hover
-- **Charts**: custom HTML legends pinned to card bottom; pie chart fills container
-- **Tags page**: label name in label color; project status group headers
+Full UI makeover. Uber black/white vibes, standardized cards, pill buttons, and a filter bar that doesn't embarrass itself. Charts finally look intentional. The whole app went from "works fine" to "I'd show this to someone."
 
 ---
 
 ## [0.5.0] — 2026-04-10
 
-- **Income page** (`/income`): dedicated feed, period selector, owner filter
-- **Recurring income**: schedule manager with auto-spawn on load (weekly/biweekly/semi-monthly/monthly)
-- **Cashflow Sankey chart**: income → spending categories waterfall on Dashboard
-- **Expenses**: income entries hidden from expense list; income-only rows have rainbow gradient and `+` sign
-- **Dashboard**: income rows open toast instead of edit modal
+Income gets its own page. Recurring income scheduler auto-spawns entries so you can pretend payday just happens. Cashflow Sankey chart added for when you want to feel feelings about where your money went.
 
 ---
 
 ## [0.4.0] — 2026-04-10
 
-- **Exclude Projects filter**: hide projects from all Dashboard metrics; persists across sessions
-- **Page-level owner filter**: gates all charts, cards, and list
-- **Unified filter bar**: period + owner + projects in one scrollable row
+Projects can now be excluded from Dashboard metrics — great for hiding the "Renovation" project from your own anxiety. Owner filter gates everything. Filter bar unified into one tidy row.
 
 ---
 
 ## [0.3.0] — 2026-04-06
 
-- **Bulk actions in header**: select mode transforms page header into command bar (Labels, Project, Owner, Delete)
-- **Bulk project assignment**: assign project to many transactions at once
-- Bulk owner/label pickers compute true common value across selection
+Select a bunch of transactions and boss them around in bulk — labels, project, owner, delete. The header transforms into a command bar, which is very satisfying to use.
 
 ---
 
 ## [0.2.0] — 2026-04-05
 
-- **Projects**: named projects with color, icon, date range, optional budget; inline picker on every transaction row; `/projects` page
+Projects are here. Name them, color them, give them a budget they'll definitely blow through. Assign to transactions inline. `/projects` page added.
 
 ---
 
 ## [0.1.0] — 2026-03-31
 
-Initial release — zero to working couples budget tracker.
-
-- Next.js 15, TypeScript strict, Tailwind, shadcn/ui, Zustand, Recharts
-- Transactions: add/edit/delete, search, filter, date grouping, bulk actions, CSV export
-- Labels: color + emoji, inline multi-select
-- Analytics: spend by owner/label, pie + line charts, period selector
-- Cloud: Supabase Auth, households, PostgreSQL, RLS, optimistic updates, Plaid sandbox
+It exists. Full-stack couples budget tracker: transactions, labels, analytics, Supabase auth, households, RLS, Plaid sandbox. Zero to shipped.
 
 ---
 

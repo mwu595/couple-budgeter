@@ -46,6 +46,8 @@ import {
   insertRecurringIncome,
   patchRecurringIncome,
   removeRecurringIncome,
+  removeAllRecurringIncomes,
+  removeRecurringIncomeTransactions,
 } from '@/lib/db'
 
 // ─── Pure helper: advance a date by one recurrence interval ─────────────────
@@ -106,6 +108,7 @@ export interface AppStore extends AppState {
   addRecurringIncome: (data: Omit<RecurringIncome, 'id' | 'createdAt'>) => Promise<void>
   updateRecurringIncome: (id: string, updates: Partial<Omit<RecurringIncome, 'id' | 'createdAt'>>) => Promise<void>
   deleteRecurringIncome: (id: string) => Promise<void>
+  clearAllRecurringData: () => Promise<void>
   spawnDueIncomes: () => Promise<void>
 
   // User actions
@@ -606,9 +609,34 @@ export const useAppStore = create<AppStore>()(
         }
       },
 
+      clearAllRecurringData: async () => {
+        const { householdId } = get()
+
+        set((state) => ({
+          recurringIncomes: [],
+          transactions: state.transactions.filter((t) => !t.recurringIncomeId || t.reviewed),
+        }))
+
+        if (householdId) {
+          try {
+            await removeAllRecurringIncomes(householdId)
+            await removeRecurringIncomeTransactions(householdId)
+          } catch (err) {
+            console.error('[store] clearAllRecurringData sync failed:', err)
+          }
+        }
+      },
+
       spawnDueIncomes: async () => {
-        const { recurringIncomes, householdId } = get()
+        const { recurringIncomes, transactions, householdId } = get()
         const today = fnsFormat(new Date(), 'yyyy-MM-dd')
+
+        // Prevent re-spawning income that was already inserted for a given date
+        const alreadySpawned = new Set(
+          transactions
+            .filter((t) => t.recurringIncomeId)
+            .map((t) => `${t.recurringIncomeId}::${t.date}`)
+        )
 
         const newTransactions: Transaction[] = []
         const nextDateUpdates = new Map<string, string>()  // riId → new nextDate
@@ -618,31 +646,35 @@ export const useAppStore = create<AppStore>()(
           if (nextDate > today) continue
 
           while (nextDate <= today) {
-            newTransactions.push({
-              id:                uuidv4(),
-              date:              nextDate,
-              merchant:          ri.name,
-              amount:            -(ri.amount),   // positive → negative (income convention)
-              accountName:       ri.accountName,
-              notes:             ri.notes,
-              payerId:           ri.payerId,
-              appliedTo:         'shared' as const,
-              labelIds:          [],
-              reviewed:          false,
-              recurringIncomeId: ri.id,
-              createdAt:         new Date().toISOString(),
-            })
+            if (!alreadySpawned.has(`${ri.id}::${nextDate}`)) {
+              newTransactions.push({
+                id:                uuidv4(),
+                date:              nextDate,
+                merchant:          ri.name,
+                amount:            -(ri.amount),   // positive → negative (income convention)
+                accountName:       ri.accountName,
+                notes:             ri.notes,
+                payerId:           ri.payerId,
+                appliedTo:         'shared' as const,
+                labelIds:          [],
+                reviewed:          false,
+                recurringIncomeId: ri.id,
+                createdAt:         new Date().toISOString(),
+              })
+            }
             nextDate = computeNextDate(nextDate, ri.frequency)
           }
 
           nextDateUpdates.set(ri.id, nextDate)
         }
 
-        if (newTransactions.length === 0) return
+        if (newTransactions.length === 0 && nextDateUpdates.size === 0) return
 
         // Optimistic update
         set((state) => ({
-          transactions: [...newTransactions, ...state.transactions],
+          transactions: newTransactions.length > 0
+            ? [...newTransactions, ...state.transactions]
+            : state.transactions,
           recurringIncomes: state.recurringIncomes.map((r) => {
             const nd = nextDateUpdates.get(r.id)
             return nd ? { ...r, nextDate: nd } : r
@@ -652,7 +684,9 @@ export const useAppStore = create<AppStore>()(
         if (!householdId) return
 
         try {
-          await insertTransactions(householdId, newTransactions)
+          if (newTransactions.length > 0) {
+            await insertTransactions(householdId, newTransactions)
+          }
           await Promise.all(
             [...nextDateUpdates.entries()].map(([id, nextDate]) =>
               patchRecurringIncome(id, { nextDate }),
@@ -660,7 +694,7 @@ export const useAppStore = create<AppStore>()(
           )
         } catch (err) {
           console.error('[store] spawnDueIncomes sync failed:', err)
-          // Revert optimistic state
+          // Revert optimistic state for new transactions only
           const spawnedIds = new Set(newTransactions.map((t) => t.id))
           set((state) => ({
             transactions: state.transactions.filter((t) => !spawnedIds.has(t.id)),
