@@ -16,7 +16,7 @@ This app won't fix your relationship, but it will at least make sure you're both
 - **Projects** — group transactions under a named goal (vacation, renovation, etc.) with optional budget and date range
 - **Bulk actions** — select multiple transactions and assign labels, owner, or project in one tap
 - **Income tracking** — log one-off income and set up recurring paychecks or transfers
-- **Analytics dashboard** — spending totals, pie chart by label, line chart over time, Sankey cashflow diagram
+- **Analytics dashboard** — spending totals, pie chart by label, line chart over time, Sankey cashflow diagram, per-person savings breakdown with yearly projection, monthly accumulative spend line, and a transaction calendar dot-map
 - **Period selector** — filter every view by preset or custom date range
 - **CSV export** — because sometimes you need to yell at a spreadsheet
 - **Cloud sync** — Supabase backend with optimistic updates (feels instant, syncs in the background)

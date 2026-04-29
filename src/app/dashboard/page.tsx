@@ -21,6 +21,9 @@ import {
   SpendingPieChart,
   SpendingLineChart,
   CashflowChart,
+  SavingsByPersonChart,
+  CumulativeSpendChart,
+  TransactionCalendar,
 } from '@/modules/analytics'
 import { TransactionFeed, TransactionForm } from '@/modules/transactions'
 import {
@@ -105,6 +108,15 @@ export default function DashboardPage() {
 
   // Apply page-level filters: excluded projects + payer + applied person — affects all downstream metrics
   const visibleTransactions = periodTransactions.filter((tx) => {
+    if (tx.projectId && excludedProjectIds.includes(tx.projectId)) return false
+    if (!tx.projectId && excludedProjectIds.includes(NO_PROJECT_ID)) return false
+    if (payerIds.length > 0 && !payerIds.includes(tx.payerId)) return false
+    if (appliedPersons.length > 0 && !appliedPersons.includes(tx.appliedTo)) return false
+    return true
+  })
+
+  // Same payer/project filters but NO date range — used by charts that allow free month navigation
+  const allTimeFilteredTransactions = transactions.filter((tx) => {
     if (tx.projectId && excludedProjectIds.includes(tx.projectId)) return false
     if (!tx.projectId && excludedProjectIds.includes(NO_PROJECT_ID)) return false
     if (payerIds.length > 0 && !payerIds.includes(tx.payerId)) return false
@@ -395,17 +407,35 @@ export default function DashboardPage() {
             onLabelClick={handleLabelClick}
             activeLabelIds={activeLabelIds}
           />
+          <CashflowChart
+            transactions={visibleTransactions}
+            labels={labels}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <SpendingLineChart
             transactions={visibleTransactions}
             users={users}
             dateRange={dateRange}
           />
+          <CumulativeSpendChart
+            transactions={allTimeFilteredTransactions}
+            dateRange={dateRange}
+          />
         </div>
 
-        <CashflowChart
-          transactions={visibleTransactions}
-          labels={labels}
-        />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <TransactionCalendar
+            transactions={allTimeFilteredTransactions}
+            dateRange={dateRange}
+          />
+          <SavingsByPersonChart
+            transactions={visibleTransactions}
+            users={users}
+            dateRange={dateRange}
+          />
+        </div>
 
         {/* ── Inline transaction list ───────────────────────────────────── */}
         <div className="bg-card border border-border shadow-[rgba(0,0,0,0.08)_0px_2px_8px_0px] rounded-xl overflow-hidden">

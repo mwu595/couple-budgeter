@@ -24,7 +24,7 @@ export function CashflowChart({ transactions, labels }: CashflowChartProps) {
   // Empty state — no expense transactions at all
   if (data.nodes.length === 0) {
     return (
-      <div className="bg-card border border-border shadow-[rgba(0,0,0,0.08)_0px_2px_8px_0px] rounded-xl p-6 flex flex-col items-center justify-center h-48 gap-2">
+      <div className="bg-card border border-border shadow-[rgba(0,0,0,0.08)_0px_2px_8px_0px] rounded-xl flex flex-col items-center justify-center h-[350px] gap-2 p-6">
         <p className="text-sm font-medium text-muted-foreground">No spending data</p>
         <p className="text-xs text-muted-foreground">Add some transactions to see your cashflow.</p>
       </div>
@@ -43,9 +43,9 @@ export function CashflowChart({ transactions, labels }: CashflowChartProps) {
   >[0]['colors']
 
   return (
-    <div className="bg-card border border-border shadow-[rgba(0,0,0,0.08)_0px_2px_8px_0px] rounded-xl overflow-hidden">
+    <div className="bg-card border border-border shadow-[rgba(0,0,0,0.08)_0px_2px_8px_0px] rounded-xl overflow-hidden flex flex-col h-[350px]">
       {/* Card header */}
-      <div className="px-4 pt-4 pb-0">
+      <div className="px-4 pt-4 pb-0 flex-shrink-0">
         <p className="text-sm font-medium">Cashflow</p>
         {!data.hasIncome && (
           <p className="text-xs text-muted-foreground mt-0.5">
@@ -55,7 +55,7 @@ export function CashflowChart({ transactions, labels }: CashflowChartProps) {
       </div>
 
       {/* Chart */}
-      <div className="h-80 w-full px-2 py-4">
+      <div className="flex-1 min-h-0 w-full px-2 py-4">
         <ResponsiveSankey
           data={{ nodes: data.nodes, links: data.links }}
           margin={{ top: 8, right: 140, bottom: 8, left: 8 }}

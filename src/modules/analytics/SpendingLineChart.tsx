@@ -141,9 +141,9 @@ export function SpendingLineChart({ transactions, users, dateRange }: SpendingLi
   const title = `${GRANULARITY_LABELS[granularity]} Spending`
 
   return (
-    <div className="bg-card border border-border shadow-[rgba(0,0,0,0.08)_0px_2px_8px_0px] rounded-xl p-4">
+    <div className="bg-card border border-border shadow-[rgba(0,0,0,0.08)_0px_2px_8px_0px] rounded-xl p-4 flex flex-col h-[350px]">
       {/* Header */}
-      <div className="flex items-start justify-between gap-2 mb-3">
+      <div className="flex items-start justify-between gap-2 mb-3 flex-shrink-0">
         <div>
           <p className="text-sm font-medium">{title}</p>
           {!isOverridden && (
@@ -175,13 +175,13 @@ export function SpendingLineChart({ transactions, users, dateRange }: SpendingLi
 
       {/* Chart or empty state */}
       {chartData.length === 0 ? (
-        <div className="h-[248px] flex items-center justify-center">
+        <div className="flex-1 flex items-center justify-center">
           <p className="text-xs text-muted-foreground">No data for this period</p>
         </div>
       ) : (
         <>
-          <div aria-label={`Line chart showing ${granularity} spending by person`}>
-            <ResponsiveContainer width="100%" height={248}>
+          <div aria-label={`Line chart showing ${granularity} spending by person`} className="flex-1 min-h-0">
+            <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                 <XAxis
@@ -231,7 +231,7 @@ export function SpendingLineChart({ transactions, users, dateRange }: SpendingLi
           </div>
 
           {/* ── Custom legend ── */}
-          <div className="flex justify-center gap-6 pt-4">
+          <div className="flex justify-center gap-6 pt-4 flex-shrink-0">
             {[
               { name: users[0].name, color: '#2E7D32' },
               { name: users[1].name, color: '#1565C0' },

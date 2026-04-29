@@ -2,6 +2,12 @@
 
 ---
 
+## [0.8.0] — 2026-04-28
+
+Three new dashboard cards: Savings by Person (who's carrying this household), Monthly Accumulative Spending (a line that goes solid-to-dotted at today, because the future is uncertain), and Transaction Calendar (a dot for every day you spent money, which is probably all of them). Charts reordered, unified in height, and the calendar stopped treating out-of-range dates like suspects.
+
+---
+
 ## [0.7.2] — 2026-04-22
 
 Account field is now optional and moved below "Who Pays" — because you shouldn't need to know which credit card you used to log a coffee. Fixed a recurring income ghost bug where deleted schedules kept haunting you like an ex who still watches your Stories. "Clear all" respects reviewed entries like a responsible adult.

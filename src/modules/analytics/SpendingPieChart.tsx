@@ -38,18 +38,18 @@ export function SpendingPieChart({
   activeLabelIds = [],
 }: SpendingPieChartProps) {
   return (
-    <div className="bg-card border border-border shadow-[rgba(0,0,0,0.08)_0px_2px_8px_0px] rounded-xl p-4">
-      <p className="text-sm font-medium mb-2">Spending by Label</p>
+    <div className="bg-card border border-border shadow-[rgba(0,0,0,0.08)_0px_2px_8px_0px] rounded-xl p-4 flex flex-col h-[350px]">
+      <p className="text-sm font-medium mb-2 flex-shrink-0">Spending by Label</p>
 
       {spendByLabel.length === 0 ? (
-        <div className="h-48 flex items-center justify-center">
+        <div className="flex-1 flex items-center justify-center">
           <p className="text-xs text-muted-foreground">No spending for this period</p>
         </div>
       ) : (
         <>
           {/* ── Chart ── */}
-          <div aria-label="Pie chart showing spending by label">
-            <ResponsiveContainer width="100%" height={220}>
+          <div aria-label="Pie chart showing spending by label" className="flex-1 min-h-0">
+            <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={spendByLabel.map((entry) => ({
@@ -86,7 +86,7 @@ export function SpendingPieChart({
           </div>
 
           {/* ── Custom legend ── */}
-          <div className="flex flex-wrap justify-center gap-x-4 gap-y-1.5 pt-4">
+          <div className="flex flex-wrap justify-center gap-x-4 gap-y-1.5 pt-4 flex-shrink-0">
             {spendByLabel.map((entry) => {
               const isActive  = activeLabelIds.includes(entry.label.id)
               const hasFilter = activeLabelIds.length > 0

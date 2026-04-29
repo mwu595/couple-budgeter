@@ -139,7 +139,7 @@ const DEFAULT_FILTERS: TransactionFilters = {
   projectId: undefined,
 }
 
-const DEFAULT_PERIOD: ActivePeriod = { preset: 'all_time' }
+const DEFAULT_PERIOD: ActivePeriod = { preset: 'this_month' }
 
 const DEFAULT_USERS: [User, User] = [
   { id: 'user_a', name: 'Person 1', avatarEmoji: '🧑' },
@@ -768,7 +768,6 @@ export const useAppStore = create<AppStore>()(
       // filters is intentionally excluded: label IDs in filters can reference
       // labels from a different session/account, silently hiding all transactions.
       partialize: (state) => ({
-        activePeriod: state.activePeriod,
         onboardingComplete: state.onboardingComplete,
         sampleDataDismissed: state.sampleDataDismissed,
         dashboardExcludedProjectIds: state.dashboardExcludedProjectIds,
