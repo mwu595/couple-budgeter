@@ -2,9 +2,17 @@
 
 ---
 
+## [0.9.1] — 2026-09-21
+
+The agent can now pre-assign who paid, who it's for, and labels on the transactions it pushes — three optional fields on `POST /api/agent-ingest` (`payer`, `for_who`, `labels`), resolved server-side against the household's members and label names. Unknown label names are skipped and echoed back as `unknown_labels`. Labels only ever attach to rows the request itself created, so nothing you've already touched gets relabelled. Requests without the new fields behave exactly as before.
+
+---
+
 ## [0.9.0] — 2026-09-21
 
-The app no longer talks to Plaid — or any bank. Every Plaid code path is gone: the five API routes, the Link button, the OAuth callback page, the Settings "Connected accounts" panel, and two npm packages. In their place is one private endpoint, `POST /api/agent-ingest`, that an external agent with its own bank connection pushes transactions through. It's insert-only and deduplicates against an append-only ledger, so anything you edit stays edited and anything you delete stays deleted. On the database side, `plaid_items` and `plaid_accounts` are dropped and `plaid_seen_ids` becomes `agent_seen_ids`, carrying its rows forward. New env vars: `BUDGET_INGEST_TOKEN`, `BUDGET_HOUSEHOLD_ID`. Contract in `supabase/AGENT_INGESTION.md`.
+Your own AI agent can now feed the app. A new private endpoint, `POST /api/agent-ingest`, lets an external agent — Muse, for one — that holds your Plaid connection push transactions straight into your household. The endpoint is insert-only and deduplicates against an append-only ledger, so anything you edit stays edited and anything you delete stays deleted; every imported row lands unreviewed with a `[Muse]` prefix for you to sort. Bring the bank connection; the app brings the review flow, labels, ownership, and charts.
+
+To make room for that, the app's own half-built Plaid integration is gone — the API routes, the Link button, the OAuth page, the Settings panel, two packages. The bank connection lives with the agent now, not in this codebase. On the database side, `plaid_items` and `plaid_accounts` are dropped and `plaid_seen_ids` becomes `agent_seen_ids`, carrying its rows forward. New env vars: `BUDGET_INGEST_TOKEN`, `BUDGET_HOUSEHOLD_ID`. Contract in `supabase/AGENT_INGESTION.md`.
 
 ---
 

@@ -28,11 +28,18 @@ Request body:
       "date":     "2026-09-21",
       "merchant": "Whole Foods",
       "amount":   84.32,
-      "card":     "Chase ••••7659"
+      "card":     "Chase ••••7659",
+
+      "payer":    "MT",
+      "for_who":  "shared",
+      "labels":   ["Dining"]
     }
   ]
 }
 ```
+
+The last three fields are optional. Omit them and the row lands as
+`shared` / `shared` with no labels — exactly the v0.9.0 behaviour.
 
 | field | type | meaning |
 |-------|------|---------|
@@ -41,20 +48,25 @@ Request body:
 | `merchant` | string | Display name. The route prefixes it with `[Muse] ` so imported rows are recognisable. |
 | `amount` | number | **Positive = money out (charge), negative = money in.** Same sign convention as the app. |
 | `card` | string | Becomes `transactions.account_name`. Use a stable display string like `Chase ••••7659`. |
+| `payer` | string, optional | Who paid → `payer_id`. A member's display name (case-insensitive, e.g. `"MT"`), a slot id (`"user_a"` / `"user_b"`), or `"shared"`. Absent or unmatched → `shared`. |
+| `for_who` | string, optional | Who it's for → `applied_to`. Same resolution as `payer`. Absent or unmatched → `shared`. |
+| `labels` | string[], optional | Label names, matched case-insensitively against the household's labels. Unknown names are skipped (never created) and echoed back in `unknown_labels`. |
 
 Response:
 
 ```json
-{ "inserted": 3, "skipped": 12 }
+{ "inserted": 3, "skipped": 12, "unknown_labels": ["Groceries"] }
 ```
 
 `skipped` = rows whose fingerprint was already in the ledger. Send the same
-batch twice and the second call inserts nothing.
+batch twice and the second call inserts nothing. `unknown_labels` lists
+every label name in the request that didn't match a household label — use
+it to learn the real label set; the app never auto-creates labels.
 
 | status | meaning |
 |--------|---------|
 | 200 | processed |
-| 400 | malformed body — a field is missing or the wrong type |
+| 400 | malformed body — a required field is missing, or `payer`/`for_who` isn't a string, or `labels` isn't an array of strings |
 | 401 | missing or wrong bearer token |
 | 500 | database error; safe to retry, retries are idempotent |
 
@@ -67,23 +79,29 @@ first-run backfill of thousands of rows in one request is fine.
 
 Insert-only. It never updates or deletes anything.
 
-1. Fingerprints are checked against `agent_seen_ids`; anything seen is skipped.
-2. Fresh rows are inserted into `transactions` as:
+1. `payer` / `for_who` are resolved against `household_members.display_name`
+   and `labels` against `labels.name` — one read each, case-insensitive.
+2. Fingerprints are checked against `agent_seen_ids`; anything seen is skipped.
+3. Fresh rows are inserted into `transactions` as:
    - `merchant` = `[Muse] <merchant>`
    - `account_name` = `card`
-   - `payer_id` = `'shared'`, `applied_to` = `'shared'` (DB default)
+   - `payer_id` = resolved `payer`, `applied_to` = resolved `for_who`
+     (`shared` when absent or unmatched)
    - `reviewed` = `false` — surfaces under the feed's **Unreviewed** filter
    - `plaid_transaction_id` = `plaid_id` (column name is historical; it is the
      generic external-fingerprint column, unique)
-   - `notes`, `project_id`, labels: empty — the user assigns during review
-3. Fingerprints are recorded in `agent_seen_ids`, **after** the insert
-   succeeds. A crash between the two steps re-processes on retry rather than
-   losing rows.
+   - `notes`, `project_id`: empty — the user assigns during review
+4. Resolved labels are attached via `transaction_labels`, **only to rows this
+   request inserted**. A row that already existed is never relabelled.
+5. Fingerprints are recorded in `agent_seen_ids`, **after** the writes
+   succeed. Any failure after the insert returns 500; a retry re-processes
+   idempotently rather than losing rows.
 
 Consequences the agent can rely on:
 
 - The user editing an imported row (merchant, amount, payer, labels…) is
-  never overwritten — the next push skips it by fingerprint.
+  never overwritten — the next push skips it by fingerprint, and labels are
+  only ever attached to newly created rows.
 - The user deleting an imported row — it stays deleted. The ledger row
   outlives the transaction row.
 

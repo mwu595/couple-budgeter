@@ -20,7 +20,7 @@ This app won't fix your relationship, but it will at least make sure you're both
 - **Period selector** — filter every view by preset or custom date range
 - **CSV export** — because sometimes you need to yell at a spreadsheet
 - **Cloud sync** — Supabase backend with optimistic updates (feels instant, syncs in the background)
-- **Agent-fed bank data** — the app never talks to a bank itself; an external agent with its own bank connection pushes transactions to a private `POST /api/agent-ingest` endpoint (see `supabase/AGENT_INGESTION.md`)
+- **Bring your own agent** — an external AI agent (e.g. Muse) that holds your Plaid connection can push transactions straight into the app, pre-tagged with who paid, who it's for, and labels. See [Feeding transactions from an agent](#feeding-transactions-from-an-agent).
 
 ---
 
@@ -35,7 +35,7 @@ This app won't fix your relationship, but it will at least make sure you're both
 | Charts | Recharts |
 | State | Zustand |
 | Auth + DB | Supabase |
-| Bank data | External agent → `/api/agent-ingest` |
+| Bank data | Your own agent (Plaid on its side) → `POST /api/agent-ingest` |
 | Hosting | Vercel |
 
 ---
@@ -59,6 +59,39 @@ Open `http://localhost:xxxx` (Next.js will tell you the port).
 | `SUPABASE_SERVICE_ROLE_KEY` | Server-only; used by invite/household routes and `/api/agent-ingest` |
 | `BUDGET_INGEST_TOKEN` | Bearer token the ingest agent must present |
 | `BUDGET_HOUSEHOLD_ID` | Household that agent-pushed transactions belong to |
+
+---
+
+## Feeding transactions from an agent
+
+The app doesn't connect to banks itself. Instead it exposes one private endpoint that any external agent — Muse, a cron job, a script — can push transactions through. The agent owns the bank connection (Plaid link, sync cursors, credentials); the app owns the data once it lands.
+
+```
+POST https://<your-domain>/api/agent-ingest
+Authorization: Bearer <BUDGET_INGEST_TOKEN>
+
+{ "transactions": [
+    { "plaid_id": "abc123",            // stable fingerprint — the dedup key
+      "date":     "2026-09-21",
+      "merchant": "Whole Foods",
+      "amount":   84.32,               // positive = charge, negative = credit
+      "card":     "Chase ••••7659",    // becomes the account name
+      "payer":    "MT",                // optional — member name, slot id, or "shared"
+      "for_who":  "shared",            // optional — same resolution
+      "labels":   ["Grocery"] }        // optional — matched to your label names
+] }
+```
+
+What you get back: `{ "inserted": 1, "skipped": 0, "unknown_labels": [] }`.
+
+Rules the endpoint enforces so the agent can't make a mess:
+
+- **Insert-only.** It never updates or deletes. Edit or delete an imported row in the app and it stays that way — the fingerprint ledger means the next push skips it.
+- **Human review.** Every imported row lands unreviewed, merchant prefixed `[Muse]`, so you can find them under the feed's Unreviewed filter.
+- **Labels never auto-create.** Unknown names are skipped and echoed back in `unknown_labels`.
+- **Idempotent.** Re-send a batch and nothing duplicates; a 500 is always safe to retry.
+
+Setup: run `supabase/004_agent_ingestion.sql`, set `BUDGET_INGEST_TOKEN` and `BUDGET_HOUSEHOLD_ID` in Vercel, hand the token and URL to your agent. Full contract in [`supabase/AGENT_INGESTION.md`](supabase/AGENT_INGESTION.md).
 
 ---
 

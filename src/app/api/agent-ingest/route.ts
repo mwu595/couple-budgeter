@@ -31,19 +31,33 @@ import { createServiceClient } from '@/lib/supabase/server'
  *         "date": "2026-09-21",        // YYYY-MM-DD
  *         "merchant": "Whole Foods",
  *         "amount": 84.32,             // positive = charge
- *         "card": "Chase ••••7659" }   // display name for account_name
+ *         "card": "Chase ••••7659",    // display name for account_name
+ *         // ── optional (v0.9.1) ──
+ *         "payer": "MT",               // who paid → payer_id
+ *         "for_who": "shared",         // who it's for → applied_to
+ *         "labels": ["Dining"] }       // label names → transaction_labels
  *   ] }
+ *
+ *   payer / for_who accept a member's display name (case-insensitive), a
+ *   slot id ("user_a" / "user_b"), or "shared". Anything else, or absent,
+ *   resolves to 'shared'. labels are matched case-insensitively against the
+ *   household's `labels.name`; unknown names are skipped and echoed back in
+ *   the response as `unknown_labels` so the agent can learn the real set.
  *
  * WHAT HAPPENS PER REQUEST
  *   1. Token is verified (401 otherwise).
- *   2. Body is validated — every item needs the five fields above.
+ *   2. Body is validated — every item needs the five required fields;
+ *      optional fields must be the right type when present.
  *   3. Fingerprints are checked against `agent_seen_ids`. Anything already
  *      seen is skipped.
  *   4. New rows are inserted into `transactions` with:
  *        - merchant prefixed "[Muse] "  → marks agent-imported rows
  *        - reviewed = false             → human review only, never auto-set
- *        - payer_id = 'shared'          → fix up in the UI when reviewing
- *   5. Fingerprints are recorded in `agent_seen_ids`.
+ *        - payer_id / applied_to        → resolved from payer / for_who,
+ *                                         'shared' when absent or unmatched
+ *   5. Resolved labels are attached via `transaction_labels` — only to the
+ *      rows this request actually inserted.
+ *   6. Fingerprints are recorded in `agent_seen_ids`.
  *
  * GUARANTEES (read before "optimizing" this file)
  *   - This endpoint NEVER updates or deletes rows. There is no UPDATE or
@@ -52,12 +66,20 @@ import { createServiceClient } from '@/lib/supabase/server'
  *       * editing an imported row (name, amount, payer, labels…) → the
  *         next sync leaves it alone;
  *       * deleting an imported row → it stays deleted, never re-imported.
- *   - If recording fingerprints fails, the endpoint returns 500 so the
- *     caller retries. Retries are idempotent (unique constraint below).
+ *   - Labels are attached only to rows returned by the insert, i.e. rows
+ *     that did not exist before this request. Existing rows are never
+ *     relabelled.
+ *   - If any write after the transactions insert fails, the endpoint
+ *     returns 500 so the caller retries. Retries are idempotent (unique
+ *     constraints on the fingerprint and on transaction_labels' PK).
  *
  * DATABASE DEPENDENCIES — if you refactor the schema, keep these intact:
  *   - `transactions` columns used: household_id, date, merchant, amount,
- *     account_name, notes, payer_id, reviewed, and EXTERNAL_ID_COLUMN.
+ *     account_name, notes, payer_id, applied_to, reviewed, and
+ *     EXTERNAL_ID_COLUMN.
+ *   - `household_members` (household_id, slot, display_name) — read only.
+ *   - `labels` (household_id, id, name) — read only.
+ *   - `transaction_labels` (transaction_id, label_id) — insert only.
  *   - `agent_seen_ids` table (household_id, external_transaction_id).
  *     Defined in supabase/setup.sql and supabase/004_agent_ingestion.sql:
  *       create table if not exists agent_seen_ids (
@@ -98,12 +120,21 @@ const EXTERNAL_ID_COLUMN = 'plaid_transaction_id'
 // first-run backfill can carry thousands of fingerprints.
 const SEEN_LOOKUP_CHUNK = 200
 
+type Slot = 'user_a' | 'user_b' | 'shared'
+
 type IngestTransaction = {
   plaid_id: string
   date: string // YYYY-MM-DD
   merchant: string
   amount: number // positive = charge
   card: string // display name, e.g. "Chase ••••7659"
+  payer?: string // display name | slot id | 'shared'
+  for_who?: string // display name | slot id | 'shared'
+  labels?: string[] // label names
+}
+
+function isStringArray(v: unknown): v is string[] {
+  return Array.isArray(v) && v.every((x) => typeof x === 'string')
 }
 
 export async function POST(req: NextRequest) {
@@ -131,7 +162,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'transactions must be an array' }, { status: 400 })
   }
   if (transactions.length === 0) {
-    return NextResponse.json({ inserted: 0, skipped: 0 })
+    return NextResponse.json({ inserted: 0, skipped: 0, unknown_labels: [] })
   }
   const valid = transactions.every(
     (t) =>
@@ -139,16 +170,72 @@ export async function POST(req: NextRequest) {
       typeof t?.date === 'string' &&
       typeof t?.merchant === 'string' &&
       typeof t?.amount === 'number' &&
-      typeof t?.card === 'string',
+      typeof t?.card === 'string' &&
+      (t.payer === undefined || typeof t.payer === 'string') &&
+      (t.for_who === undefined || typeof t.for_who === 'string') &&
+      (t.labels === undefined || isStringArray(t.labels)),
   )
   if (!valid) {
     return NextResponse.json(
-      { error: 'each transaction needs plaid_id, date, merchant, amount, card' },
+      {
+        error:
+          'each transaction needs plaid_id, date, merchant, amount, card; ' +
+          'payer and for_who must be strings and labels an array of strings when present',
+      },
       { status: 400 },
     )
   }
 
-  // ── 3. Map to the transactions schema ──────────────────────
+  const supabase = createServiceClient()
+
+  // ── 3. Resolve payer / for_who / labels against the household ──
+  // One read each, only when the request actually uses the field.
+  const slotByName = new Map<string, Slot>() // lower-cased display_name → slot
+  if (transactions.some((t) => t.payer !== undefined || t.for_who !== undefined)) {
+    const { data: members, error } = await supabase
+      .from('household_members')
+      .select('slot, display_name')
+      .eq('household_id', householdId)
+    if (error) {
+      console.error('[agent-ingest] member lookup failed:', error.message)
+      return NextResponse.json({ error: 'member lookup failed' }, { status: 500 })
+    }
+    for (const m of members ?? []) slotByName.set(String(m.display_name).toLowerCase(), m.slot)
+  }
+
+  function resolveSlot(value: string | undefined): Slot {
+    if (!value) return 'shared'
+    const v = value.trim().toLowerCase()
+    if (v === 'shared' || v === 'user_a' || v === 'user_b') return v
+    return slotByName.get(v) ?? 'shared'
+  }
+
+  const labelIdByName = new Map<string, string>() // lower-cased name → id
+  if (transactions.some((t) => t.labels && t.labels.length > 0)) {
+    const { data: labelRows, error } = await supabase
+      .from('labels')
+      .select('id, name')
+      .eq('household_id', householdId)
+    if (error) {
+      console.error('[agent-ingest] label lookup failed:', error.message)
+      return NextResponse.json({ error: 'label lookup failed' }, { status: 500 })
+    }
+    for (const l of labelRows ?? []) labelIdByName.set(String(l.name).toLowerCase(), l.id)
+  }
+
+  const unknownLabels = new Set<string>()
+  const labelIdsByFingerprint = new Map<string, string[]>()
+  for (const t of transactions) {
+    const ids = new Set<string>()
+    for (const name of t.labels ?? []) {
+      const id = labelIdByName.get(name.trim().toLowerCase())
+      if (id) ids.add(id)
+      else unknownLabels.add(name)
+    }
+    if (ids.size > 0) labelIdsByFingerprint.set(t.plaid_id, [...ids])
+  }
+
+  // ── 4. Map to the transactions schema ──────────────────────
   const rows = transactions.map((t) => ({
     household_id: householdId,
     date: t.date,
@@ -156,16 +243,16 @@ export async function POST(req: NextRequest) {
     amount: t.amount,
     account_name: t.card,
     notes: null,
-    payer_id: 'shared', // auto-imported; fix up in the UI when reviewing
+    payer_id: resolveSlot(t.payer),
+    applied_to: resolveSlot(t.for_who),
     reviewed: false, // never auto-checked — human review only
     [EXTERNAL_ID_COLUMN]: t.plaid_id,
   }))
   const incomingIds = transactions.map((t) => t.plaid_id)
 
-  // ── 4. Skip everything already seen ────────────────────────
+  // ── 5. Skip everything already seen ────────────────────────
   // The ledger (not just the transactions table) is the source of truth,
   // so edited rows are never overwritten and deleted rows never return.
-  const supabase = createServiceClient()
   const seen = new Set<string>()
   for (let i = 0; i < incomingIds.length; i += SEEN_LOOKUP_CHUNK) {
     const { data: seenRows, error: seenReadError } = await supabase
@@ -184,25 +271,43 @@ export async function POST(req: NextRequest) {
   const fresh = rows.filter((r) => !seen.has(r[EXTERNAL_ID_COLUMN] as string))
 
   if (fresh.length === 0) {
-    return NextResponse.json({ inserted: 0, skipped: rows.length })
+    return NextResponse.json({ inserted: 0, skipped: rows.length, unknown_labels: [...unknownLabels] })
   }
 
-  // ── 5. Insert new rows ─────────────────────────────────────
+  // ── 6. Insert new rows ─────────────────────────────────────
   // The unique constraint on the fingerprint column is a second safety net:
-  // with ignoreDuplicates, re-sends can never overwrite existing rows.
+  // with ignoreDuplicates, re-sends can never overwrite existing rows, and
+  // only rows that were actually inserted come back from .select().
   const { data: inserted, error: insertError } = await supabase
     .from('transactions')
     .upsert(fresh, { onConflict: EXTERNAL_ID_COLUMN, ignoreDuplicates: true })
-    .select('id')
+    .select(`id, ${EXTERNAL_ID_COLUMN}`)
 
   if (insertError) {
     console.error('[agent-ingest] insert failed:', insertError.message)
     return NextResponse.json({ error: 'insert failed', details: insertError.message }, { status: 500 })
   }
 
-  // ── 6. Record fingerprints AFTER a successful insert ────────
+  // ── 7. Attach labels to the rows this request created ──────
+  const labelLinks = (inserted ?? []).flatMap((row) =>
+    (labelIdsByFingerprint.get(row[EXTERNAL_ID_COLUMN]) ?? []).map((label_id) => ({
+      transaction_id: row.id,
+      label_id,
+    })),
+  )
+  if (labelLinks.length > 0) {
+    const { error: labelError } = await supabase
+      .from('transaction_labels')
+      .upsert(labelLinks, { onConflict: 'transaction_id,label_id', ignoreDuplicates: true })
+    if (labelError) {
+      console.error('[agent-ingest] label attach failed:', labelError.message)
+      return NextResponse.json({ error: 'label attach failed' }, { status: 500 })
+    }
+  }
+
+  // ── 8. Record fingerprints AFTER a successful insert ────────
   // If this write fails we return 500 so the caller retries — retries are
-  // idempotent thanks to the unique constraint above.
+  // idempotent thanks to the unique constraints above.
   const { error: seenWriteError } = await supabase.from('agent_seen_ids').upsert(
     fresh.map((r) => ({
       household_id: householdId,
@@ -217,5 +322,9 @@ export async function POST(req: NextRequest) {
   }
 
   const insertedCount = inserted?.length ?? 0
-  return NextResponse.json({ inserted: insertedCount, skipped: rows.length - insertedCount })
+  return NextResponse.json({
+    inserted: insertedCount,
+    skipped: rows.length - insertedCount,
+    unknown_labels: [...unknownLabels],
+  })
 }
