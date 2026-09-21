@@ -37,9 +37,8 @@ export function TransactionRow({
 
   const updateTransaction = useAppStore((s) => s.updateTransaction)
 
-  const txLabels = labelIds
-    .map((lid) => labels.find((l) => l.id === lid))
-    .filter((l): l is Label => l !== undefined)
+  // Display labels in global sort order (from store), not insertion order.
+  const txLabels = labels.filter((l) => labelIds.includes(l.id))
 
   function handleClick() {
     if (selectionMode) {

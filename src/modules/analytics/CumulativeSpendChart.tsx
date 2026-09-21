@@ -19,62 +19,98 @@ import { formatCurrency } from '@/core/utils'
 
 interface CumulativePoint {
   label: string
-  past: number | null    // non-null for day <= todayDay (confirmed spend)
-  future: number | null  // non-null for day >= todayDay (remaining days in month)
+  past: number | null      // non-null for day <= todayDay (confirmed spend)
+  future: number | null    // non-null for day >= todayDay (remaining days in month)
+  lastMonth: number | null // non-null when comparison overlay enabled and day <= last month's last day
 }
 
-// todayDay: day-of-month for current month (split at today) | null = past month (all solid) | 0 = future month (all dotted)
-function buildCumulativeData(
-  transactions: Transaction[],
-  ym: string,
-  todayDay: number | null,
-): CumulativePoint[] {
-  const firstDay = parseISO(`${ym}-01`)
-  const daysInMonth = getDaysInMonth(firstDay)
-  const shortMonth = format(firstDay, 'MMM')
-
+// Cumulative running totals per day-of-month for a given set of monthly transactions.
+function buildRunningByDay(transactions: Transaction[], daysInMonth: number): number[] {
   const byDay = new Map<number, number>()
   for (const tx of transactions) {
     if (tx.amount <= 0) continue
     const day = parseInt(tx.date.slice(8, 10), 10)
     byDay.set(day, (byDay.get(day) ?? 0) + tx.amount)
   }
-
+  const out: number[] = []
   let running = 0
+  for (let day = 1; day <= daysInMonth; day++) {
+    running += byDay.get(day) ?? 0
+    out.push(running)
+  }
+  return out
+}
+
+// todayDay: day-of-month for current month (split at today) | null = past month (all solid) | 0 = future month (all dotted)
+// lastMonthTxs: when provided, overlays last month's running cumulative as `lastMonth`.
+function buildCumulativeData(
+  transactions: Transaction[],
+  ym: string,
+  todayDay: number | null,
+  lastMonthTxs?: Transaction[],
+  lastMonthDays?: number,
+): CumulativePoint[] {
+  const firstDay = parseISO(`${ym}-01`)
+  const daysInMonth = getDaysInMonth(firstDay)
+  const shortMonth = format(firstDay, 'MMM')
+
+  const currentRunning = buildRunningByDay(transactions, daysInMonth)
+  const lastRunning = lastMonthTxs && lastMonthDays
+    ? buildRunningByDay(lastMonthTxs, lastMonthDays)
+    : null
+
   return Array.from({ length: daysInMonth }, (_, i) => {
     const day = i + 1
-    running += byDay.get(day) ?? 0
+    const running = currentRunning[i]
+    const lastMonth = lastRunning && day <= lastRunning.length ? lastRunning[day - 1] : null
 
+    let past: number | null = null
+    let future: number | null = null
     if (todayDay === null) {
-      return { label: `${shortMonth} ${day}`, past: running, future: null }
+      past = running
+    } else if (day < todayDay) {
+      past = running
+    } else if (day === todayDay) {
+      past = running
+      future = running
+    } else {
+      future = running
     }
-    if (day < todayDay) {
-      return { label: `${shortMonth} ${day}`, past: running, future: null }
-    }
-    if (day === todayDay) {
-      return { label: `${shortMonth} ${day}`, past: running, future: running }
-    }
-    return { label: `${shortMonth} ${day}`, past: null, future: running }
+
+    return { label: `${shortMonth} ${day}`, past, future, lastMonth }
   })
 }
 
 // ── Tooltip ──────────────────────────────────────────────────────────────────
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-function CustomTooltip({ active, payload, label }: any) {
+function CustomTooltip({ active, payload, label, showComparison }: any) {
   if (!active || !payload?.length) return null
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const val = payload.find((p: any) => p.value != null)?.value
-  if (val == null) return null
+  const get = (key: string) => payload.find((p: any) => p.dataKey === key && p.value != null)?.value
+  const current = get('past') ?? get('future')
+  const lastMonth = get('lastMonth')
+  if (current == null && lastMonth == null) return null
+
   return (
-    <div className="bg-popover shadow-[rgba(0,0,0,0.16)_0px_4px_16px_0px] rounded-lg px-3 py-2 text-xs">
-      <p className="font-medium mb-1">{label}</p>
-      <p className="text-muted-foreground">
-        Total to date:{' '}
-        <span className="font-medium tabular-nums text-foreground">
-          {formatCurrency(val)}
-        </span>
-      </p>
+    <div className="bg-popover shadow-[rgba(0,0,0,0.16)_0px_4px_16px_0px] rounded-lg px-3 py-2 text-xs space-y-1">
+      <p className="font-medium">{label}</p>
+      {current != null && (
+        <p className="text-muted-foreground">
+          {showComparison ? 'This month' : 'Total to date'}:{' '}
+          <span className="font-medium tabular-nums text-foreground">
+            {formatCurrency(current)}
+          </span>
+        </p>
+      )}
+      {showComparison && lastMonth != null && (
+        <p className="text-muted-foreground">
+          Last month:{' '}
+          <span className="font-medium tabular-nums text-foreground">
+            {formatCurrency(lastMonth)}
+          </span>
+        </p>
+      )}
     </div>
   )
 }
@@ -118,14 +154,29 @@ export function CumulativeSpendChart({ transactions, dateRange }: CumulativeSpen
   const goNewer = () =>
     setCurrentYm(format(addMonths(parseISO(`${currentYm}-01`), 1), 'yyyy-MM'))
 
+  // Overlay last month's series only when viewing the current month.
+  const showComparison = currentYm === todayYm
+  const lastYm = useMemo(
+    () => format(addMonths(parseISO(`${currentYm}-01`), -1), 'yyyy-MM'),
+    [currentYm],
+  )
+
   const data = useMemo(() => {
     const monthTxs = transactions.filter((tx) => tx.date.startsWith(currentYm))
     // null = past month (all solid), todayDay = current month (split), 0 = future month (all dotted)
     const dayArg = currentYm === todayYm ? todayDay : currentYm < todayYm ? null : 0
-    return buildCumulativeData(monthTxs, currentYm, dayArg)
-  }, [transactions, currentYm, todayYm, todayDay])
 
-  const hasSpend = data.some((d) => (d.past ?? 0) > 0 || (d.future ?? 0) > 0)
+    if (!showComparison) {
+      return buildCumulativeData(monthTxs, currentYm, dayArg)
+    }
+    const lastMonthTxs = transactions.filter((tx) => tx.date.startsWith(lastYm))
+    const lastMonthDays = getDaysInMonth(parseISO(`${lastYm}-01`))
+    return buildCumulativeData(monthTxs, currentYm, dayArg, lastMonthTxs, lastMonthDays)
+  }, [transactions, currentYm, todayYm, todayDay, showComparison, lastYm])
+
+  const hasSpend = data.some(
+    (d) => (d.past ?? 0) > 0 || (d.future ?? 0) > 0 || (d.lastMonth ?? 0) > 0,
+  )
 
   const axisTicks = data.length > 0
     ? [data[0].label, data[data.length - 1].label]
@@ -134,15 +185,34 @@ export function CumulativeSpendChart({ transactions, dateRange }: CumulativeSpen
   const BASE_MAX = 10_000
   const STEP = 2_000
   const last = data.at(-1)
-  const peak = last ? (last.past ?? last.future ?? 0) : 0
+  const currentPeak = last ? (last.past ?? last.future ?? 0) : 0
+  // Last month's peak is always the final non-null lastMonth value (running total is monotonic).
+  const lastMonthPeak = showComparison
+    ? data.reduce((m, d) => (d.lastMonth != null && d.lastMonth > m ? d.lastMonth : m), 0)
+    : 0
+  const peak = Math.max(currentPeak, lastMonthPeak)
   const yMax = peak <= BASE_MAX ? BASE_MAX : Math.ceil(peak / STEP) * STEP
   const yTicks = Array.from({ length: yMax / STEP + 1 }, (_, i) => i * STEP)
 
   return (
     <div className="bg-card border border-border shadow-[rgba(0,0,0,0.08)_0px_2px_8px_0px] rounded-xl p-4 flex flex-col h-[350px]">
       {/* Header */}
-      <div className="flex items-center justify-between mb-3 flex-shrink-0">
-        <p className="text-sm font-medium">Monthly Accumulative Spending</p>
+      <div className="flex items-center justify-between mb-3 flex-shrink-0 gap-2">
+        <div className="flex items-center gap-3 min-w-0">
+          <p className="text-sm font-medium whitespace-nowrap">Monthly Accumulative Spending</p>
+          {showComparison && (
+            <div className="hidden sm:flex items-center gap-2 text-[10px] text-muted-foreground">
+              <span className="inline-flex items-center gap-1">
+                <span className="inline-block w-3 h-[2px] bg-black" />
+                This month
+              </span>
+              <span className="inline-flex items-center gap-1">
+                <span className="inline-block w-3 h-px bg-[#b8c8d6]" />
+                Last month
+              </span>
+            </div>
+          )}
+        </div>
         <div className="flex items-center gap-2">
           {currentYm !== defaultYm && (
             <button
@@ -199,7 +269,20 @@ export function CumulativeSpendChart({ transactions, dateRange }: CumulativeSpen
                 axisLine={false}
                 width={52}
               />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={<CustomTooltip showComparison={showComparison} />} />
+              {/* Last month — drawn first so it sits behind */}
+              {showComparison && (
+                <Line
+                  type="linear"
+                  dataKey="lastMonth"
+                  stroke="#b8c8d6"
+                  strokeWidth={1}
+                  dot={false}
+                  connectNulls={false}
+                  isAnimationActive={false}
+                  activeDot={{ r: 3, fill: '#b8c8d6' }}
+                />
+              )}
               {/* Confirmed spend — solid black */}
               <Line
                 type="linear"

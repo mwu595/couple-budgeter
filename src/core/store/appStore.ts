@@ -26,6 +26,7 @@ import {
   insertLabels,
   patchLabel,
   removeLabel,
+  reorderLabels as reorderLabelsDb,
   insertTransaction,
   insertTransactions,
   patchTransaction,
@@ -93,6 +94,7 @@ export interface AppStore extends AppState {
   addLabel: (data: Omit<Label, 'id'>) => Promise<Label>
   updateLabel: (id: string, updates: Partial<Omit<Label, 'id'>>) => Promise<void>
   deleteLabel: (id: string) => Promise<void>
+  reorderLabels: (orderedIds: string[]) => Promise<void>
 
   // Project actions
   addProject: (data: Omit<Project, 'id'>) => Promise<Project>
@@ -410,6 +412,36 @@ export const useAppStore = create<AppStore>()(
             if (prev) {
               set({ labels: [...get().labels, prev], transactions: prevTransactions })
             }
+          }
+        }
+      },
+
+      reorderLabels: async (orderedIds) => {
+        const prevLabels = get().labels
+        const byId = new Map(prevLabels.map((l) => [l.id, l]))
+        const next = orderedIds
+          .map((id) => byId.get(id))
+          .filter((l): l is Label => Boolean(l))
+
+        // Append any labels not present in orderedIds (defensive — should not happen)
+        for (const l of prevLabels) {
+          if (!orderedIds.includes(l.id)) next.push(l)
+        }
+
+        if (next.length === prevLabels.length &&
+            next.every((l, i) => l.id === prevLabels[i].id)) {
+          return // No change
+        }
+
+        set({ labels: next })
+
+        const { householdId } = get()
+        if (householdId) {
+          try {
+            await reorderLabelsDb(next.map((l) => l.id))
+          } catch (err) {
+            console.error('[store] reorderLabels sync failed:', err)
+            set({ labels: prevLabels })
           }
         }
       },

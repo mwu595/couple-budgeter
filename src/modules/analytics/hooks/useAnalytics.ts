@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { parseISO, differenceInCalendarDays } from 'date-fns'
-import type { Transaction, Label, User, PayerId } from '@/core/types'
+import type { Transaction, Label, Project, User, PayerId } from '@/core/types'
 import { UNLABELED_LABEL } from '@/core/utils'
 
 export interface SpendByOwner {
@@ -15,20 +15,28 @@ export interface SpendByLabel {
   count: number
 }
 
+export interface SpendByProject {
+  project: Project
+  total: number
+  count: number
+}
+
 export interface AnalyticsResult {
   totalSpend: number
   spendByOwner: SpendByOwner[]
   spendByLabel: SpendByLabel[]
+  spendByProject: SpendByProject[]
   avgDailySpend: number
 }
 
 interface UseAnalyticsInput {
   transactions: Transaction[]
   labels: Label[]
+  projects: Project[]
   users: [User, User]
 }
 
-export function useAnalytics({ transactions, labels, users }: UseAnalyticsInput): AnalyticsResult {
+export function useAnalytics({ transactions, labels, projects, users }: UseAnalyticsInput): AnalyticsResult {
   return useMemo(() => {
     // Only positive amounts count as spend (negative = refund/income)
     const spending = transactions.filter((tx) => tx.amount > 0)
@@ -70,6 +78,22 @@ export function useAnalytics({ transactions, labels, users }: UseAnalyticsInput)
       spendByLabel.push({ label: UNLABELED_LABEL, total: unlabeledTotal, count: unlabeledSpending.length })
     }
 
+    // ── Spend by project ────────────────────────────────────────────────
+    const projectMap = new Map<string, { total: number; count: number }>()
+    for (const tx of spending) {
+      if (!tx.projectId) continue
+      const prev = projectMap.get(tx.projectId) ?? { total: 0, count: 0 }
+      projectMap.set(tx.projectId, { total: prev.total + tx.amount, count: prev.count + 1 })
+    }
+    // Includes projects with zero current-period spend so the Top Projects card
+    // can always fill three slots when at least three projects exist.
+    const spendByProject: SpendByProject[] = projects
+      .map((project) => {
+        const data = projectMap.get(project.id) ?? { total: 0, count: 0 }
+        return { project, total: data.total, count: data.count }
+      })
+      .sort((a, b) => b.total - a.total)
+
     // ── Avg daily spend ─────────────────────────────────────────────────
     let avgDailySpend = 0
     if (spending.length > 0) {
@@ -80,6 +104,6 @@ export function useAnalytics({ transactions, labels, users }: UseAnalyticsInput)
       avgDailySpend = totalSpend / days
     }
 
-    return { totalSpend, spendByOwner, spendByLabel, avgDailySpend }
-  }, [transactions, labels, users])
+    return { totalSpend, spendByOwner, spendByLabel, spendByProject, avgDailySpend }
+  }, [transactions, labels, projects, users])
 }

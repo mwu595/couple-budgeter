@@ -1,12 +1,13 @@
 'use client'
 
 import { formatCurrency } from '@/core/utils'
-import type { SpendByOwner, SpendByLabel } from './hooks/useAnalytics'
+import type { SpendByOwner, SpendByLabel, SpendByProject } from './hooks/useAnalytics'
 
 interface SummaryCardsProps {
   totalSpend: number
   spendByOwner: SpendByOwner[]
   spendByLabel: SpendByLabel[]
+  spendByProject: SpendByProject[]
   avgDailySpend: number
   transactionCount: number
 }
@@ -31,13 +32,15 @@ export function SummaryCards({
   totalSpend,
   spendByOwner,
   spendByLabel,
+  spendByProject,
   avgDailySpend,
   transactionCount,
 }: SummaryCardsProps) {
   const topLabels = spendByLabel.slice(0, 3)
+  const topProjects = spendByProject.slice(0, 3)
 
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
       {/* Total Spent */}
       <Card title="Total Spent">
         <p className="text-3xl font-bold tabular-nums tracking-tight">{formatCurrency(totalSpend)}</p>
@@ -82,6 +85,33 @@ export function SummaryCards({
                   <span className="text-xs text-muted-foreground truncate">
                     {label.icon && <span className="mr-0.5">{label.icon}</span>}
                     {label.name}
+                  </span>
+                </div>
+                <span className="text-xs font-semibold tabular-nums shrink-0">
+                  {formatCurrency(total)}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
+      {/* Top Projects */}
+      <Card title="Top Projects">
+        {topProjects.length === 0 ? (
+          <p className="text-xs text-muted-foreground">No projects yet</p>
+        ) : (
+          <div className="space-y-1.5">
+            {topProjects.map(({ project, total }) => (
+              <div key={project.id} className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span
+                    className="w-2 h-2 rounded-full shrink-0"
+                    style={{ backgroundColor: project.color }}
+                  />
+                  <span className="text-xs text-muted-foreground truncate">
+                    {project.icon && <span className="mr-0.5">{project.icon}</span>}
+                    {project.name}
                   </span>
                 </div>
                 <span className="text-xs font-semibold tabular-nums shrink-0">

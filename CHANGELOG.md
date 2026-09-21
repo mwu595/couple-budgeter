@@ -2,6 +2,12 @@
 
 ---
 
+## [0.8.1] — 2026-09-21
+
+Labels are now draggable on the Tags page — the order you set shows up everywhere else, so your most-used tags can finally live at the top. Monthly Accumulative Spending gets a thin blue ghost of last month behind the current line, so you can see at a glance whether you're winning or losing the race against yourself. And the dashboard summary row gains a fifth card, Top Projects, for the three projects soaking up the most spend.
+
+---
+
 ## [0.8.0] — 2026-04-28
 
 Three new dashboard cards: Savings by Person (who's carrying this household), Monthly Accumulative Spending (a line that goes solid-to-dotted at today, because the future is uncertain), and Transaction Calendar (a dot for every day you spent money, which is probably all of them). Charts reordered, unified in height, and the calendar stopped treating out-of-range dates like suspects.

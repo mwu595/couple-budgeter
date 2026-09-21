@@ -35,9 +35,10 @@ export const useTransactionActions = () =>
 
 export const useLabelActions = () =>
   useAppStore((s) => ({
-    addLabel:    s.addLabel,
-    updateLabel: s.updateLabel,
-    deleteLabel: s.deleteLabel,
+    addLabel:       s.addLabel,
+    updateLabel:    s.updateLabel,
+    deleteLabel:    s.deleteLabel,
+    reorderLabels:  s.reorderLabels,
   }))
 
 export const useProjectActions = () =>

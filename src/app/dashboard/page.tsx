@@ -124,7 +124,7 @@ export default function DashboardPage() {
     return true
   })
 
-  const analytics = useAnalytics({ transactions: visibleTransactions, labels, users })
+  const analytics = useAnalytics({ transactions: visibleTransactions, labels, projects, users })
 
   // Transactions shown in the list — filtered by active labels if any are selected
   const listTransactions = sortTransactions(
@@ -397,6 +397,7 @@ export default function DashboardPage() {
           totalSpend={analytics.totalSpend}
           spendByOwner={analytics.spendByOwner}
           spendByLabel={analytics.spendByLabel}
+          spendByProject={analytics.spendByProject}
           avgDailySpend={analytics.avgDailySpend}
           transactionCount={visibleTransactions.length}
         />
