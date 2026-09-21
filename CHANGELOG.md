@@ -2,6 +2,12 @@
 
 ---
 
+## [0.9.0] — 2026-09-21
+
+The app no longer talks to Plaid — or any bank. Every Plaid code path is gone: the five API routes, the Link button, the OAuth callback page, the Settings "Connected accounts" panel, and two npm packages. In their place is one private endpoint, `POST /api/agent-ingest`, that an external agent with its own bank connection pushes transactions through. It's insert-only and deduplicates against an append-only ledger, so anything you edit stays edited and anything you delete stays deleted. On the database side, `plaid_items` and `plaid_accounts` are dropped and `plaid_seen_ids` becomes `agent_seen_ids`, carrying its rows forward. New env vars: `BUDGET_INGEST_TOKEN`, `BUDGET_HOUSEHOLD_ID`. Contract in `supabase/AGENT_INGESTION.md`.
+
+---
+
 ## [0.8.1] — 2026-09-21
 
 Labels are now draggable on the Tags page — the order you set shows up everywhere else, so your most-used tags can finally live at the top. Monthly Accumulative Spending gets a thin blue ghost of last month behind the current line, so you can see at a glance whether you're winning or losing the race against yourself. And the dashboard summary row gains a fifth card, Top Projects, for the three projects soaking up the most spend.

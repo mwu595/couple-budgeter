@@ -1,68 +1,16 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import { LogOut, UserPlus, RefreshCw, Trash2 } from 'lucide-react'
+import { LogOut, UserPlus } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
-import { useUsers, useAppStore } from '@/core/store'
+import { useUsers } from '@/core/store'
 import { UserProfileForm } from '@/modules/ownership'
-import { PlaidLinkButton } from '@/components/PlaidLink'
-import { ConfirmDialog } from '@/components/ConfirmDialog'
 import { createClient } from '@/lib/supabase/client'
 
-interface PlaidAccount {
-  accountId: string; name: string; officialName: string | null
-  type: string; subtype: string | null; mask: string | null
-}
-interface Institution { id: string; institutionName: string; accounts: PlaidAccount[] }
-
 export default function SettingsPage() {
-  const router          = useRouter()
-  const users           = useUsers()
-  const loadHouseholdData = useAppStore((s) => s.loadHouseholdData)
-
-  const [institutions,   setInstitutions]   = useState<Institution[]>([])
-  const [syncing,        setSyncing]        = useState(false)
-  const [syncMsg,        setSyncMsg]        = useState<string | null>(null)
-  const [removingId,     setRemovingId]     = useState<string | null>(null)
-  const [confirmRemove,  setConfirmRemove]  = useState<Institution | null>(null)
-
-  const fetchAccounts = useCallback(() => {
-    fetch('/api/plaid/accounts')
-      .then((r) => r.json())
-      .then((data: { institutions: Institution[] }) => setInstitutions(data.institutions ?? []))
-      .catch(() => {})
-  }, [])
-
-  useEffect(() => { fetchAccounts() }, [fetchAccounts])
-
-  async function handleSync() {
-    setSyncing(true)
-    setSyncMsg(null)
-    try {
-      const res  = await fetch('/api/plaid/sync', { method: 'POST' })
-      const data = await res.json() as { added: number; message?: string }
-      setSyncMsg(data.message ?? `${data.added} new transaction${data.added !== 1 ? 's' : ''} imported`)
-      if (data.added > 0) await loadHouseholdData()
-    } catch {
-      setSyncMsg('Sync failed — please try again')
-    } finally {
-      setSyncing(false)
-    }
-  }
-
-  async function handleRemove(inst: Institution) {
-    setRemovingId(inst.id)
-    setConfirmRemove(null)
-    try {
-      await fetch(`/api/plaid/items/${inst.id}`, { method: 'DELETE' })
-      fetchAccounts()
-      setSyncMsg(null)
-    } finally {
-      setRemovingId(null)
-    }
-  }
+  const router = useRouter()
+  const users  = useUsers()
 
   async function handleSignOut() {
     const supabase = createClient()
@@ -97,57 +45,6 @@ export default function SettingsPage() {
                   </div>
                 ))}
               </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ── Connected accounts ───────────────────────────────────────────── */}
-        <section>
-          <div className="border border-border shadow-[rgba(0,0,0,0.08)_0px_2px_8px_0px] rounded-xl overflow-hidden">
-            <div className="flex items-center px-4 py-3 border-b border-border">
-              <span className="text-sm font-medium">Connected accounts</span>
-            </div>
-            <div className="p-4 space-y-4">
-              {institutions.length > 0 ? (
-                <div className="space-y-3">
-                  {institutions.map((inst) => (
-                    <div key={inst.id} className="border border-border rounded-lg p-3 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <p className="text-sm font-medium">{inst.institutionName}</p>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-destructive hover:text-destructive hover:bg-destructive/10 h-7 px-2"
-                          disabled={removingId === inst.id}
-                          onClick={() => setConfirmRemove(inst)}
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </Button>
-                      </div>
-                      <ul className="space-y-1">
-                        {inst.accounts.map((a) => (
-                          <li key={a.accountId} className="text-xs text-muted-foreground flex justify-between">
-                            <span>{a.officialName ?? a.name}</span>
-                            <span className="font-mono">{a.mask ? `••••${a.mask}` : a.type}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
-                  <div className="flex items-center gap-2 pt-1">
-                    <Button size="sm" variant="outline" onClick={handleSync} disabled={syncing}>
-                      <RefreshCw className={`w-3.5 h-3.5 mr-1.5 ${syncing ? 'animate-spin' : ''}`} />
-                      {syncing ? 'Syncing…' : 'Sync transactions'}
-                    </Button>
-                    {syncMsg && <p className="text-xs text-muted-foreground">{syncMsg}</p>}
-                  </div>
-                </div>
-              ) : (
-                <p className="text-xs text-muted-foreground">
-                  Account connection coming soon.
-                </p>
-              )}
-              <PlaidLinkButton onSuccess={() => { fetchAccounts(); setSyncMsg(null) }} />
             </div>
           </div>
         </section>
@@ -195,19 +92,7 @@ export default function SettingsPage() {
             </div>
           </div>
         </section>
-
-
       </div>
-
-      <ConfirmDialog
-        open={confirmRemove !== null}
-        title={`Remove ${confirmRemove?.institutionName ?? 'account'}?`}
-        description="This disconnects the bank connection and removes all linked accounts. Imported transactions are kept."
-        confirmLabel="Remove"
-        destructive
-        onConfirm={() => confirmRemove && handleRemove(confirmRemove)}
-        onCancel={() => setConfirmRemove(null)}
-      />
     </div>
   )
 }

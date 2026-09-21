@@ -20,7 +20,7 @@ This app won't fix your relationship, but it will at least make sure you're both
 - **Period selector** — filter every view by preset or custom date range
 - **CSV export** — because sometimes you need to yell at a spreadsheet
 - **Cloud sync** — Supabase backend with optimistic updates (feels instant, syncs in the background)
-- **Plaid integration** — connect bank accounts to pull transactions automatically (sandbox mode; production live)
+- **Agent-fed bank data** — the app never talks to a bank itself; an external agent with its own bank connection pushes transactions to a private `POST /api/agent-ingest` endpoint (see `supabase/AGENT_INGESTION.md`)
 
 ---
 
@@ -35,7 +35,7 @@ This app won't fix your relationship, but it will at least make sure you're both
 | Charts | Recharts |
 | State | Zustand |
 | Auth + DB | Supabase |
-| Bank sync | Plaid |
+| Bank data | External agent → `/api/agent-ingest` |
 | Hosting | Vercel |
 
 ---
@@ -44,7 +44,7 @@ This app won't fix your relationship, but it will at least make sure you're both
 
 ```bash
 npm install
-cp .env.example .env.local   # fill in your Supabase + Plaid keys
+cp .env.example .env.local   # fill in your Supabase keys
 npm run dev
 ```
 
@@ -56,9 +56,9 @@ Open `http://localhost:xxxx` (Next.js will tell you the port).
 |----------|-------------|
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anon key |
-| `PLAID_CLIENT_ID` | Plaid client ID |
-| `PLAID_SECRET` | Plaid sandbox secret |
-| `PLAID_ENV` | `sandbox` or `production` |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-only; used by invite/household routes and `/api/agent-ingest` |
+| `BUDGET_INGEST_TOKEN` | Bearer token the ingest agent must present |
+| `BUDGET_HOUSEHOLD_ID` | Household that agent-pushed transactions belong to |
 
 ---
 
