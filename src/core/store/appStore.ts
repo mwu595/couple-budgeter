@@ -10,6 +10,7 @@ import type {
   Project,
   RecurringIncome,
   RecurringFrequency,
+  Budget,
   User,
   UserId,
   ActivePeriod,
@@ -49,7 +50,28 @@ import {
   removeRecurringIncome,
   removeAllRecurringIncomes,
   removeRecurringIncomeTransactions,
+  getBudgets,
+  insertBudget,
+  patchBudget,
+  reorderBudgets as reorderBudgetsDb,
+  removeBudget,
+  removeAllBudgets,
 } from '@/lib/db'
+
+// ─── Pure helper: readable sync errors ──────────────────────────────────────
+
+// Supabase rejects with a plain `{ code, message, details, hint }` object, and
+// the Next.js dev overlay renders plain objects as `{}`. Put the message in
+// the string so the reason is visible wherever the log lands; the raw object
+// still follows for DevTools.
+function describeError(err: unknown): string {
+  if (err instanceof Error) return err.message
+  if (err && typeof err === 'object') {
+    const { code, message, details, hint } = err as { code?: string; message?: string; details?: string; hint?: string }
+    return [code, message, details, hint].filter(Boolean).join(' — ')
+  }
+  return String(err)
+}
 
 // ─── Pure helper: advance a date by one recurrence interval ─────────────────
 
@@ -113,6 +135,13 @@ export interface AppStore extends AppState {
   clearAllRecurringData: () => Promise<void>
   spawnDueIncomes: () => Promise<void>
 
+  // Budget actions
+  addBudget: (budget: Omit<Budget, 'id' | 'sortOrder'>) => Promise<void>
+  updateBudget: (id: string, updates: Partial<Omit<Budget, 'id'>>) => Promise<void>
+  // Assigns sort_order = index to each id in turn; ids not listed are untouched.
+  reorderBudgets: (orderedIds: string[]) => Promise<void>
+  deleteBudget: (id: string) => Promise<void>
+
   // User actions
   updateUser: (id: UserId, updates: Partial<Omit<User, 'id'>>) => Promise<void>
 
@@ -158,6 +187,7 @@ function buildInitialState(): AppState {
     accounts: [],
     projects: [],
     recurringIncomes: [],
+    budgets: [],
     activePeriod: DEFAULT_PERIOD,
     filters: DEFAULT_FILTERS,
     onboardingComplete: false,
@@ -208,6 +238,7 @@ export const useAppStore = create<AppStore>()(
           const accounts         = await getAccounts(householdId).catch(() => [])
           const projects         = await getProjects(householdId).catch(() => [])
           const recurringIncomes = await getRecurringIncomes(householdId).catch(() => [])
+          const budgets          = await getBudgets(householdId).catch(() => [])
 
           set({
             householdId,
@@ -217,6 +248,7 @@ export const useAppStore = create<AppStore>()(
             accounts,
             projects,
             recurringIncomes,
+            budgets,
             dataLoading: false,
             onboardingComplete: true,
           })
@@ -278,7 +310,7 @@ export const useAppStore = create<AppStore>()(
           try {
             await insertTransaction(householdId, tx)
           } catch (err) {
-            console.error('[store] addTransaction sync failed:', err)
+            console.error('[store] addTransaction sync failed:', describeError(err), err)
             // Revert
             set((state) => ({ transactions: state.transactions.filter((t) => t.id !== id) }))
           }
@@ -300,7 +332,7 @@ export const useAppStore = create<AppStore>()(
           try {
             await patchTransaction(id, updates)
           } catch (err) {
-            console.error('[store] updateTransaction sync failed:', err)
+            console.error('[store] updateTransaction sync failed:', describeError(err), err)
             if (prev) {
               set((state) => ({
                 transactions: state.transactions.map((tx) => (tx.id === id ? prev : tx)),
@@ -320,7 +352,7 @@ export const useAppStore = create<AppStore>()(
           try {
             await removeTransaction(id)
           } catch (err) {
-            console.error('[store] deleteTransaction sync failed:', err)
+            console.error('[store] deleteTransaction sync failed:', describeError(err), err)
             if (prev) {
               set((state) => ({ transactions: [prev, ...state.transactions] }))
             }
@@ -344,7 +376,7 @@ export const useAppStore = create<AppStore>()(
           try {
             await removeTransactions(ids)
           } catch (err) {
-            console.error('[store] bulkDeleteTransactions sync failed:', err)
+            console.error('[store] bulkDeleteTransactions sync failed:', describeError(err), err)
             set((state) => ({ transactions: [...removed, ...state.transactions] }))
           }
         }
@@ -361,7 +393,7 @@ export const useAppStore = create<AppStore>()(
           try {
             await insertLabel(householdId, label)
           } catch (err) {
-            console.error('[store] addLabel sync failed:', err)
+            console.error('[store] addLabel sync failed:', describeError(err), err)
             set((state) => ({ labels: state.labels.filter((l) => l.id !== label.id) }))
           }
         }
@@ -381,7 +413,7 @@ export const useAppStore = create<AppStore>()(
           try {
             await patchLabel(id, updates)
           } catch (err) {
-            console.error('[store] updateLabel sync failed:', err)
+            console.error('[store] updateLabel sync failed:', describeError(err), err)
             if (prev) {
               set((state) => ({
                 labels: state.labels.map((l) => (l.id === id ? prev : l)),
@@ -394,13 +426,18 @@ export const useAppStore = create<AppStore>()(
       deleteLabel: async (id) => {
         const prev = get().labels.find((l) => l.id === id)
         const prevTransactions = get().transactions
+        const prevBudgets = get().budgets
 
+        // budget_labels rows cascade in the DB; mirror that locally.
         set((state) => ({
           labels: state.labels.filter((l) => l.id !== id),
           transactions: state.transactions.map((tx) => ({
             ...tx,
             labelIds: tx.labelIds.filter((lid) => lid !== id),
           })),
+          budgets: state.budgets.map((b) =>
+            b.labelIds.includes(id) ? { ...b, labelIds: b.labelIds.filter((lid) => lid !== id) } : b,
+          ),
         }))
 
         const { householdId } = get()
@@ -408,9 +445,9 @@ export const useAppStore = create<AppStore>()(
           try {
             await removeLabel(id)
           } catch (err) {
-            console.error('[store] deleteLabel sync failed:', err)
+            console.error('[store] deleteLabel sync failed:', describeError(err), err)
             if (prev) {
-              set({ labels: [...get().labels, prev], transactions: prevTransactions })
+              set({ labels: [...get().labels, prev], transactions: prevTransactions, budgets: prevBudgets })
             }
           }
         }
@@ -440,7 +477,7 @@ export const useAppStore = create<AppStore>()(
           try {
             await reorderLabelsDb(next.map((l) => l.id))
           } catch (err) {
-            console.error('[store] reorderLabels sync failed:', err)
+            console.error('[store] reorderLabels sync failed:', describeError(err), err)
             set({ labels: prevLabels })
           }
         }
@@ -457,7 +494,7 @@ export const useAppStore = create<AppStore>()(
           try {
             await insertProject(householdId, project)
           } catch (err) {
-            console.error('[store] addProject sync failed:', err)
+            console.error('[store] addProject sync failed:', describeError(err), err)
             set((state) => ({ projects: state.projects.filter((p) => p.id !== project.id) }))
           }
         }
@@ -477,7 +514,7 @@ export const useAppStore = create<AppStore>()(
           try {
             await patchProject(id, updates)
           } catch (err) {
-            console.error('[store] updateProject sync failed:', err)
+            console.error('[store] updateProject sync failed:', describeError(err), err)
             if (prev) {
               set((state) => ({
                 projects: state.projects.map((p) => (p.id === id ? prev : p)),
@@ -490,11 +527,16 @@ export const useAppStore = create<AppStore>()(
       deleteProject: async (id) => {
         const prev = get().projects.find((p) => p.id === id)
         const prevTransactions = get().transactions
+        const prevBudgets = get().budgets
 
+        // budget_projects rows cascade in the DB; mirror that locally.
         set((state) => ({
           projects: state.projects.filter((p) => p.id !== id),
           transactions: state.transactions.map((tx) =>
             tx.projectId === id ? { ...tx, projectId: undefined } : tx,
+          ),
+          budgets: state.budgets.map((b) =>
+            b.projectIds.includes(id) ? { ...b, projectIds: b.projectIds.filter((pid) => pid !== id) } : b,
           ),
         }))
 
@@ -503,9 +545,9 @@ export const useAppStore = create<AppStore>()(
           try {
             await removeProject(id)
           } catch (err) {
-            console.error('[store] deleteProject sync failed:', err)
+            console.error('[store] deleteProject sync failed:', describeError(err), err)
             if (prev) {
-              set({ projects: [...get().projects, prev], transactions: prevTransactions })
+              set({ projects: [...get().projects, prev], transactions: prevTransactions, budgets: prevBudgets })
             }
           }
         }
@@ -522,7 +564,7 @@ export const useAppStore = create<AppStore>()(
           try {
             await insertAccount(householdId, account)
           } catch (err) {
-            console.error('[store] addAccount sync failed:', err)
+            console.error('[store] addAccount sync failed:', describeError(err), err)
             set((state) => ({ accounts: state.accounts.filter((a) => a.id !== account.id) }))
           }
         }
@@ -551,7 +593,7 @@ export const useAppStore = create<AppStore>()(
             await patchAccount(id, newName)
             await renameTransactionAccount(householdId, oldName, newName)
           } catch (err) {
-            console.error('[store] updateAccount sync failed:', err)
+            console.error('[store] updateAccount sync failed:', describeError(err), err)
             set((state) => ({
               accounts: state.accounts.map((a) => (a.id === id ? prev : a)),
               transactions: prevTransactions,
@@ -570,7 +612,7 @@ export const useAppStore = create<AppStore>()(
           try {
             await removeAccount(id)
           } catch (err) {
-            console.error('[store] deleteAccount sync failed:', err)
+            console.error('[store] deleteAccount sync failed:', describeError(err), err)
             if (prev) {
               set((state) => ({
                 accounts: [...state.accounts, prev].sort((a, b) => a.name.localeCompare(b.name)),
@@ -593,7 +635,7 @@ export const useAppStore = create<AppStore>()(
             // Immediately try to spawn if startDate <= today
             await get().spawnDueIncomes()
           } catch (err) {
-            console.error('[store] addRecurringIncome sync failed:', err)
+            console.error('[store] addRecurringIncome sync failed:', describeError(err), err)
             set((state) => ({ recurringIncomes: state.recurringIncomes.filter((r) => r.id !== ri.id) }))
           }
         }
@@ -613,7 +655,7 @@ export const useAppStore = create<AppStore>()(
           try {
             await patchRecurringIncome(id, updates)
           } catch (err) {
-            console.error('[store] updateRecurringIncome sync failed:', err)
+            console.error('[store] updateRecurringIncome sync failed:', describeError(err), err)
             if (prev) {
               set((state) => ({
                 recurringIncomes: state.recurringIncomes.map((r) => (r.id === id ? prev : r)),
@@ -633,7 +675,7 @@ export const useAppStore = create<AppStore>()(
           try {
             await removeRecurringIncome(id)
           } catch (err) {
-            console.error('[store] deleteRecurringIncome sync failed:', err)
+            console.error('[store] deleteRecurringIncome sync failed:', describeError(err), err)
             if (prev) {
               set((state) => ({ recurringIncomes: [prev, ...state.recurringIncomes] }))
             }
@@ -654,7 +696,7 @@ export const useAppStore = create<AppStore>()(
             await removeAllRecurringIncomes(householdId)
             await removeRecurringIncomeTransactions(householdId)
           } catch (err) {
-            console.error('[store] clearAllRecurringData sync failed:', err)
+            console.error('[store] clearAllRecurringData sync failed:', describeError(err), err)
           }
         }
       },
@@ -725,7 +767,7 @@ export const useAppStore = create<AppStore>()(
             ),
           )
         } catch (err) {
-          console.error('[store] spawnDueIncomes sync failed:', err)
+          console.error('[store] spawnDueIncomes sync failed:', describeError(err), err)
           // Revert optimistic state for new transactions only
           const spawnedIds = new Set(newTransactions.map((t) => t.id))
           set((state) => ({
@@ -735,6 +777,88 @@ export const useAppStore = create<AppStore>()(
               return original ?? r
             }),
           }))
+        }
+      },
+
+      // ── Budgets ───────────────────────────────────────────────────────────
+      addBudget: async (data) => {
+        // Append after the household's current last budget so a new tile
+        // lands at the end of its group instead of jumping to the front.
+        const sortOrder = get().budgets.reduce((max, b) => Math.max(max, b.sortOrder), -1) + 1
+        const budget: Budget = { id: uuidv4(), sortOrder, ...data }
+
+        set((state) => ({ budgets: [...state.budgets, budget] }))
+
+        const { householdId } = get()
+        if (householdId) {
+          try {
+            await insertBudget(householdId, budget)
+          } catch (err) {
+            console.error('[store] addBudget sync failed:', describeError(err), err)
+            set((state) => ({ budgets: state.budgets.filter((b) => b.id !== budget.id) }))
+          }
+        }
+      },
+
+      updateBudget: async (id, updates) => {
+        const prev = get().budgets.find((b) => b.id === id)
+
+        set((state) => ({
+          budgets: state.budgets.map((b) => (b.id === id ? { ...b, ...updates } : b)),
+        }))
+
+        const { householdId } = get()
+        if (householdId) {
+          try {
+            await patchBudget(id, updates)
+          } catch (err) {
+            console.error('[store] updateBudget sync failed:', describeError(err), err)
+            if (prev) {
+              set((state) => ({ budgets: state.budgets.map((b) => (b.id === id ? prev : b)) }))
+            }
+          }
+        }
+      },
+
+      reorderBudgets: async (orderedIds) => {
+        const prevBudgets = get().budgets
+        const position = new Map(orderedIds.map((id, idx) => [id, idx]))
+        if (prevBudgets.every((b) => !position.has(b.id) || position.get(b.id) === b.sortOrder)) {
+          return // No change
+        }
+
+        set((state) => ({
+          budgets: state.budgets.map((b) =>
+            position.has(b.id) ? { ...b, sortOrder: position.get(b.id)! } : b,
+          ),
+        }))
+
+        const { householdId } = get()
+        if (householdId) {
+          try {
+            await reorderBudgetsDb(orderedIds)
+          } catch (err) {
+            console.error('[store] reorderBudgets sync failed:', describeError(err), err)
+            set({ budgets: prevBudgets })
+          }
+        }
+      },
+
+      deleteBudget: async (id) => {
+        const prev = get().budgets.find((b) => b.id === id)
+
+        set((state) => ({ budgets: state.budgets.filter((b) => b.id !== id) }))
+
+        const { householdId } = get()
+        if (householdId) {
+          try {
+            await removeBudget(id)
+          } catch (err) {
+            console.error('[store] deleteBudget sync failed:', describeError(err), err)
+            if (prev) {
+              set((state) => ({ budgets: [...state.budgets, prev] }))
+            }
+          }
         }
       },
 
@@ -754,7 +878,7 @@ export const useAppStore = create<AppStore>()(
               ...(updates.avatarEmoji !== undefined && { avatar_emoji: updates.avatarEmoji }),
             })
           } catch (err) {
-            console.error('[store] updateUser sync failed:', err)
+            console.error('[store] updateUser sync failed:', describeError(err), err)
           }
         }
       },
@@ -777,9 +901,12 @@ export const useAppStore = create<AppStore>()(
         const { householdId } = get()
         if (!householdId) return
 
-        // Clear then reseed
+        // Clear then reseed. Budgets go too: removing every label leaves them
+        // pointing at nothing, so a clean slate is less confusing than a
+        // block of empty caps.
         await removeAllTransactions(householdId)
         await removeAllLabels(householdId)
+        await removeAllBudgets(householdId)
 
         const mock = generateMockData()
         await insertLabels(householdId, mock.labels)
@@ -788,6 +915,7 @@ export const useAppStore = create<AppStore>()(
         set({
           labels: mock.labels,
           transactions: mock.transactions,
+          budgets: [],
           sampleDataDismissed: false,
         })
       },

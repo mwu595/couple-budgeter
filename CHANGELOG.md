@@ -2,6 +2,14 @@
 
 ---
 
+## [0.10.0] — 2026-09-22
+
+Budgets. A new block under the summary cards where you cap what you actually think of as a category — one label ("Dining"), several ("Travel" = Flights + Hotels), or labels plus the projects you already file trips under. Caps are monthly for the regular stuff and yearly for the lumpy stuff, and they recur: set "Travel $10,000 a year" once and every year gets it. Each tile puts the spend against the cap on a meter that's green while you're on track, amber from 80%, red once you're over — split into a segment per label or project so you can see what's eating it — under "$X left · 12 days left". A transaction is only ever counted once, even when it carries a budgeted label *and* sits in a budgeted project, and a cap is always measured against a whole month or year, so a half-month filter never makes one look healthy.
+
+Drag the grip to put tiles in the order you think about them; click one and the transaction list below shows exactly what's behind that number. Underneath, a collapsed "Not in any budget this month" list is the nudge that turns a chart into a habit: Dining Out at $412 with no cap is one tap from having one. New `budgets`, `budget_labels` and `budget_projects` tables — run `supabase/005_budgets.sql` and `supabase/006_budget_sort_order.sql`, or the consolidated `setup.sql`.
+
+---
+
 ## [0.9.1] — 2026-09-21
 
 The agent can now pre-assign who paid, who it's for, and labels on the transactions it pushes — three optional fields on `POST /api/agent-ingest` (`payer`, `for_who`, `labels`), resolved server-side against the household's members and label names. Unknown label names are skipped and echoed back as `unknown_labels`. Labels only ever attach to rows the request itself created, so nothing you've already touched gets relabelled. Requests without the new fields behave exactly as before.

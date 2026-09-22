@@ -6,7 +6,7 @@
 --
 -- Contains:
 --   1. Helper function (my_household_id)
---   2. Core tables (households, labels, transactions, etc.)
+--   2. Core tables (households, labels, budgets, transactions, etc.)
 --   3. Row-Level Security policies
 --   4. Agent ingestion — the ledger behind POST /api/agent-ingest,
 --      plus removal of the retired in-app Plaid tables.
@@ -97,6 +97,52 @@ create table if not exists recurring_incomes (
   created_at   timestamptz not null default now()
 );
 
+-- Two pre-release drafts of `budgets` (a monthly-only one with `month`, and a
+-- per-label one with `label_id` + `period_start`) never shipped; drop either
+-- if present so `create table if not exists` below isn't a no-op on them.
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'budgets'
+      and column_name in ('month', 'label_id', 'period_start')
+  ) then
+    drop table budgets cascade;
+  end if;
+end $$;
+
+-- A named, recurring spending cap ('month' | 'year') over any number of
+-- labels and projects (junction tables below). Deleting a label or project
+-- drops it from every budget; the budget itself stays.
+create table if not exists budgets (
+  id           uuid primary key default gen_random_uuid(),
+  household_id uuid not null references households(id) on delete cascade,
+  name         text not null,
+  period       text not null check (period in ('month', 'year')),
+  amount       numeric(12,2) not null check (amount > 0),
+  sort_order   integer not null default 0,
+  created_at   timestamptz not null default now()
+);
+
+-- Deployments that ran 005 before sort_order existed: `create table if not
+-- exists` above is a no-op for them, so add the column here.
+alter table budgets add column if not exists sort_order integer not null default 0;
+
+create table if not exists budget_labels (
+  budget_id uuid not null references budgets(id) on delete cascade,
+  label_id  uuid not null references labels(id)  on delete cascade,
+  primary key (budget_id, label_id)
+);
+
+create table if not exists budget_projects (
+  budget_id  uuid not null references budgets(id)  on delete cascade,
+  project_id uuid not null references projects(id) on delete cascade,
+  primary key (budget_id, project_id)
+);
+
+create index if not exists budgets_household_idx on budgets (household_id);
+create index if not exists budgets_household_sort_idx on budgets (household_id, sort_order);
+
 create table if not exists transactions (
   id                   uuid primary key default gen_random_uuid(),
   household_id         uuid not null references households(id) on delete cascade,
@@ -156,6 +202,9 @@ alter table labels             enable row level security;
 alter table accounts           enable row level security;
 alter table projects           enable row level security;
 alter table recurring_incomes  enable row level security;
+alter table budgets            enable row level security;
+alter table budget_labels      enable row level security;
+alter table budget_projects    enable row level security;
 alter table transactions       enable row level security;
 alter table transaction_labels enable row level security;
 
@@ -172,6 +221,9 @@ drop policy if exists "labels_all"                      on labels;
 drop policy if exists "accounts_all"                    on accounts;
 drop policy if exists "projects_all"                    on projects;
 drop policy if exists "recurring_incomes_all"           on recurring_incomes;
+drop policy if exists "budgets_all"                     on budgets;
+drop policy if exists "budget_labels_all"               on budget_labels;
+drop policy if exists "budget_projects_all"             on budget_projects;
 drop policy if exists "transactions_all"                on transactions;
 drop policy if exists "transaction_labels_all"          on transaction_labels;
 
@@ -200,6 +252,7 @@ create policy "labels_all"            on labels            for all using (househ
 create policy "accounts_all"          on accounts          for all using (household_id = my_household_id()) with check (household_id = my_household_id());
 create policy "projects_all"          on projects          for all using (household_id = my_household_id()) with check (household_id = my_household_id());
 create policy "recurring_incomes_all" on recurring_incomes for all using (household_id = my_household_id()) with check (household_id = my_household_id());
+create policy "budgets_all"           on budgets           for all using (household_id = my_household_id()) with check (household_id = my_household_id());
 create policy "transactions_all"      on transactions      for all using (household_id = my_household_id()) with check (household_id = my_household_id());
 
 create policy "transaction_labels_all" on transaction_labels
@@ -208,6 +261,22 @@ create policy "transaction_labels_all" on transaction_labels
   )
   with check (
     transaction_id in (select id from transactions where household_id = my_household_id())
+  );
+
+create policy "budget_labels_all" on budget_labels
+  for all using (
+    budget_id in (select id from budgets where household_id = my_household_id())
+  )
+  with check (
+    budget_id in (select id from budgets where household_id = my_household_id())
+  );
+
+create policy "budget_projects_all" on budget_projects
+  for all using (
+    budget_id in (select id from budgets where household_id = my_household_id())
+  )
+  with check (
+    budget_id in (select id from budgets where household_id = my_household_id())
   );
 
 

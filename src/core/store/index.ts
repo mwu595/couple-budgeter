@@ -14,6 +14,7 @@ export const useLabels              = () => useAppStore((s) => s.labels)
 export const useAccounts            = () => useAppStore((s) => s.accounts)
 export const useProjects            = () => useAppStore((s) => s.projects)
 export const useRecurringIncomes    = () => useAppStore((s) => s.recurringIncomes)
+export const useBudgets             = () => useAppStore((s) => s.budgets)
 export const useUsers               = () => useAppStore((s) => s.users)
 export const useActivePeriod        = () => useAppStore((s) => s.activePeriod)
 export const useFilters             = () => useAppStore((s) => s.filters)
@@ -77,6 +78,14 @@ export const useRecurringIncomeActions = () =>
     updateRecurringIncome: s.updateRecurringIncome,
     deleteRecurringIncome: s.deleteRecurringIncome,
     spawnDueIncomes:       s.spawnDueIncomes,
+  }))
+
+export const useBudgetActions = () =>
+  useAppStore((s) => ({
+    addBudget:      s.addBudget,
+    updateBudget:   s.updateBudget,
+    reorderBudgets: s.reorderBudgets,
+    deleteBudget:   s.deleteBudget,
   }))
 
 export const useDataActions = () =>

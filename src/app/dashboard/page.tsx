@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useRef } from 'react'
-import { format, parseISO, isAfter } from 'date-fns'
+import { format, parseISO, isAfter, startOfMonth, endOfMonth, startOfYear, endOfYear } from 'date-fns'
 import { X, ArrowRight, ChevronDown, Check } from 'lucide-react'
 import Link from 'next/link'
 import {
@@ -10,10 +10,11 @@ import {
   useUsers,
   useActivePeriod,
   useProjects,
+  useBudgets,
   useDashboardExcludedProjectIds,
   useAppStore,
 } from '@/core/store'
-import { filterTransactions, sortTransactions, getDateRangeForPeriod, UNLABELED_LABEL } from '@/core/utils'
+import { filterTransactions, sortTransactions, getDateRangeForPeriod, UNLABELED_LABEL, budgetCoversTransaction, formatCurrency } from '@/core/utils'
 import type { PayerId, UserId, PeriodPreset } from '@/core/types'
 import {
   useAnalytics,
@@ -24,6 +25,7 @@ import {
   SavingsByPersonChart,
   CumulativeSpendChart,
   TransactionCalendar,
+  BudgetsBlock,
 } from '@/modules/analytics'
 import { TransactionFeed, TransactionForm } from '@/modules/transactions'
 import {
@@ -51,6 +53,11 @@ const PERIOD_PRESETS: { value: PeriodPreset; label: string }[] = [
 export default function DashboardPage() {
   // Local label filter — clicking pie slices toggles them; does NOT touch global store filters
   const [activeLabelIds, setActiveLabelIds] = useState<string[]>([])
+  // Local budget filter — "View expenses" on a budget tile; shows exactly the
+  // expenses behind that tile's number (its full month / year). Exclusive
+  // with the label filter: setting one clears the other.
+  const [activeBudgetId, setActiveBudgetId] = useState<string | null>(null)
+  const listRef = useRef<HTMLDivElement>(null)
   // Page-level payer filter — affects all charts, cards, and the transaction list
   const [payerIds, setPayerIds] = useState<PayerId[]>([])
   // Page-level applied person filter — filters by who the expense is for
@@ -65,6 +72,7 @@ export default function DashboardPage() {
   const labels                = useLabels()
   const users                 = useUsers()
   const projects              = useProjects()
+  const budgets               = useBudgets()
   const activePeriod          = useActivePeriod()
   const setActivePeriod       = useAppStore((s) => s.setActivePeriod)
   const excludedProjectIds    = useDashboardExcludedProjectIds()
@@ -126,9 +134,31 @@ export default function DashboardPage() {
 
   const analytics = useAnalytics({ transactions: visibleTransactions, labels, projects, users })
 
-  // Transactions shown in the list — filtered by active labels if any are selected
+  // Budget month / year: the ones the period starts in; All Time falls back
+  // to today. Spend is the FULL calendar month / year (payer / for-who /
+  // project filters still apply, the date range does not) so a cap is always
+  // compared against a whole period, even on a partial custom range.
+  const budgetAnchor   = activePeriod.preset === 'all_time' ? new Date() : parseISO(dateRange.start)
+  const budgetMonth    = format(startOfMonth(budgetAnchor), 'yyyy-MM-dd')
+  const budgetMonthEnd = format(endOfMonth(budgetAnchor),   'yyyy-MM-dd')
+  const budgetYear     = format(startOfYear(budgetAnchor),  'yyyy-MM-dd')
+  const budgetYearEnd  = format(endOfYear(budgetAnchor),    'yyyy-MM-dd')
+  const budgetMonthTransactions = allTimeFilteredTransactions.filter(
+    (tx) => tx.date >= budgetMonth && tx.date <= budgetMonthEnd
+  )
+  const budgetYearTransactions = allTimeFilteredTransactions.filter(
+    (tx) => tx.date >= budgetYear && tx.date <= budgetYearEnd
+  )
+
+  const activeBudget = activeBudgetId ? budgets.find((b) => b.id === activeBudgetId) : undefined
+
+  // Transactions shown in the list — the active budget's expenses, else the
+  // active labels' transactions, else everything in the period.
   const listTransactions = sortTransactions(
-    activeLabelIds.length > 0
+    activeBudget
+      ? (activeBudget.period === 'month' ? budgetMonthTransactions : budgetYearTransactions)
+          .filter((tx) => budgetCoversTransaction(activeBudget, tx))
+      : activeLabelIds.length > 0
       ? filterTransactions(
           transactions,
           { search: '', labelIds: activeLabelIds, payerIds, appliedPersons, reviewed: 'all', projectId: undefined },
@@ -156,10 +186,28 @@ export default function DashboardPage() {
 
   // Toggle: add if not present, remove if already selected
   function handleLabelClick(labelId: string) {
+    setActiveBudgetId(null)
     setActiveLabelIds((prev) =>
       prev.includes(labelId) ? prev.filter((id) => id !== labelId) : [...prev, labelId]
     )
   }
+
+  // Toggle the budget filter and bring the list into view — the charts sit
+  // between the tiles and the list, so the result is otherwise off-screen.
+  function handleViewBudgetExpenses(budgetId: string) {
+    if (activeBudgetId === budgetId) {
+      setActiveBudgetId(null)
+      return
+    }
+    setActiveLabelIds([])
+    setActiveBudgetId(budgetId)
+    requestAnimationFrame(() => listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+  }
+
+  const activeBudgetPeriodLabel = activeBudget
+    ? (activeBudget.period === 'month' ? format(parseISO(budgetMonth), 'MMMM yyyy') : format(parseISO(budgetYear), 'yyyy'))
+    : ''
+  const listTotal = listTransactions.reduce((sum, tx) => sum + (tx.amount > 0 ? tx.amount : 0), 0)
 
   const editingTransaction = editingId
     ? transactions.find((tx) => tx.id === editingId)
@@ -384,6 +432,7 @@ export default function DashboardPage() {
             setAppliedPersons([])
             setExcludedProjectIds([])
             setActiveLabelIds([])
+            setActiveBudgetId(null)
           }}
           className="flex-shrink-0 text-xs text-muted-foreground hover:text-foreground transition-colors whitespace-nowrap"
         >
@@ -400,6 +449,18 @@ export default function DashboardPage() {
           spendByProject={analytics.spendByProject}
           avgDailySpend={analytics.avgDailySpend}
           transactionCount={visibleTransactions.length}
+        />
+
+        <BudgetsBlock
+          budgetMonth={budgetMonth}
+          budgetYear={budgetYear}
+          budgets={budgets}
+          labels={labels}
+          projects={projects}
+          monthTransactions={budgetMonthTransactions}
+          yearTransactions={budgetYearTransactions}
+          activeBudgetId={activeBudgetId}
+          onViewExpenses={handleViewBudgetExpenses}
         />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -439,11 +500,27 @@ export default function DashboardPage() {
         </div>
 
         {/* ── Inline transaction list ───────────────────────────────────── */}
-        <div className="bg-card border border-border shadow-[rgba(0,0,0,0.08)_0px_2px_8px_0px] rounded-xl overflow-hidden">
+        <div ref={listRef} className="scroll-mt-4 bg-card border border-border shadow-[rgba(0,0,0,0.08)_0px_2px_8px_0px] rounded-xl overflow-hidden">
           {/* List header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-card">
             <div className="flex items-center gap-2 min-w-0">
               <span className="text-sm font-medium">Transactions</span>
+
+              {/* Active budget filter chip */}
+              {activeBudget && (
+                <span className="inline-flex items-center gap-1 text-xs rounded-full bg-primary text-primary-foreground px-2 py-0.5 min-w-0">
+                  <span className="truncate">{activeBudget.name}</span>
+                  <span className="opacity-70 shrink-0">· {activeBudgetPeriodLabel}</span>
+                  <button
+                    type="button"
+                    onClick={() => setActiveBudgetId(null)}
+                    className="hover:opacity-70 transition-opacity shrink-0"
+                    aria-label={`Stop viewing ${activeBudget.name} expenses`}
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
 
               {/* Active label filter chips */}
               {activeLabels.map((label) => (
@@ -469,8 +546,11 @@ export default function DashboardPage() {
                 </span>
               ))}
 
-              <span className="text-xs text-muted-foreground">
-                {listTransactions.length}{activeLabelIds.length > 0 ? ` of ${visibleTransactions.length}` : ''}
+              <span className="text-xs text-muted-foreground tabular-nums shrink-0">
+                {listTransactions.length}
+                {activeBudget
+                  ? ` · ${formatCurrency(listTotal)}`
+                  : activeLabelIds.length > 0 ? ` of ${visibleTransactions.length}` : ''}
               </span>
             </div>
 

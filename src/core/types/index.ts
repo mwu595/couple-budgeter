@@ -51,6 +51,25 @@ export interface Transaction {
   recurringIncomeId?: string // set when spawned by a RecurringIncome; informational only
 }
 
+// ─── Budgets ────────────────────────────────────────────────────────────────
+
+export type BudgetPeriod = 'month' | 'year'
+
+// A recurring spending cap over a set of sources. A budget applies to every
+// calendar month (or year); the dashboard shows the one for the period in
+// view. Spend counts each expense once if it carries ANY of `labelIds` or
+// belongs to ANY of `projectIds`, so "Travel" can be Flights + Hotels + the
+// Japan trip project without double-counting a flight tagged for the trip.
+export interface Budget {
+  id: string
+  name: string
+  period: BudgetPeriod
+  amount: number         // positive spending cap per period
+  labelIds: string[]     // references Label.id — deleting a label removes it from the budget
+  projectIds: string[]   // references Project.id — deleting a project removes it from the budget
+  sortOrder: number      // user-defined position within its cadence group (drag to reorder)
+}
+
 // ─── Recurring income ───────────────────────────────────────────────────────
 
 export type RecurringFrequency = 'weekly' | 'biweekly' | 'monthly' | 'semimonthly'
@@ -109,6 +128,7 @@ export interface AppState {
   accounts: Account[]
   projects: Project[]
   recurringIncomes: RecurringIncome[]
+  budgets: Budget[]
   activePeriod: ActivePeriod
   filters: TransactionFilters
   onboardingComplete: boolean
