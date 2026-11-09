@@ -33,12 +33,18 @@ export function exportTransactionsToCsv(
     shared:  'Shared',
   }
 
-  const headers = ['Date', 'Merchant', 'Amount', 'Account', 'Payer', 'For', 'Labels', 'Reviewed', 'Notes']
+  const headers = [
+    'Date', 'Merchant', 'Amount (USD)', 'Currency', 'Original Amount', 'Exchange Rate',
+    'Account', 'Payer', 'For', 'Labels', 'Reviewed', 'Notes',
+  ]
 
   const rows = transactions.map((tx) => [
     tx.date,
     tx.merchant,
     tx.amount.toFixed(2),
+    tx.currency ?? 'USD',
+    tx.originalAmount !== undefined ? tx.originalAmount.toFixed(2) : '',
+    tx.exchangeRate !== undefined ? String(tx.exchangeRate) : '',
     tx.accountName,
     payerName[tx.payerId] ?? tx.payerId,
     appliedToName[tx.appliedTo] ?? tx.appliedTo,

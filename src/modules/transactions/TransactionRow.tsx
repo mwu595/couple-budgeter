@@ -8,7 +8,7 @@ import { ProjectPicker } from '@/components/ProjectPicker'
 import { PayerPicker } from '@/components/PayerPicker'
 import { cn } from '@/lib/utils'
 import type { Transaction, Label, User, Project } from '@/core/types'
-import { formatCurrency } from '@/core/utils'
+import { formatCurrency, formatMoney } from '@/core/utils'
 import { useAppStore } from '@/core/store'
 
 interface TransactionRowProps {
@@ -49,6 +49,11 @@ export function TransactionRow({
   }
 
   const isIncome = amount < 0
+
+  const foreignAmount =
+    transaction.currency && transaction.currency !== 'USD' && transaction.originalAmount !== undefined
+      ? formatMoney(Math.abs(transaction.originalAmount), transaction.currency)
+      : null
 
   const earnedByLabel = payerId === 'shared'
     ? `Earned by ${users[0].avatarEmoji}${users[1].avatarEmoji}`
@@ -146,8 +151,13 @@ export function TransactionRow({
           )}
         </div>
 
-        {/* Row 2 right: project */}
-        <div className="flex items-center justify-end mt-0.5">
+        {/* Row 2 right: original foreign amount (if any) + project */}
+        <div className="flex flex-col items-end gap-0.5 mt-0.5">
+          {foreignAmount && (
+            <span className="text-xs text-muted-foreground tabular-nums whitespace-nowrap">
+              {foreignAmount}
+            </span>
+          )}
           {!isIncome && (selectionMode ? (
             projectId && (() => {
               const proj = projects.find((p) => p.id === projectId)

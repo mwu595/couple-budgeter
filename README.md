@@ -144,7 +144,7 @@ npm run dev
 | `CHANGELOG.md` | Version history and release notes |
 | `supabase/AGENT_INGESTION.md` | The agent ingest contract in full |
 | `supabase/setup.sql` | Complete schema for a fresh install |
-| `supabase/001`–`004_*.sql` | Incremental migrations for existing deployments |
+| `supabase/001`–`007_*.sql` | Incremental migrations for existing deployments |
 
 ---
 

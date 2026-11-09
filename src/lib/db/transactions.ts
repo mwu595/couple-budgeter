@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/client'
-import type { Transaction } from '@/core/types'
+import type { Transaction, CurrencyCode } from '@/core/types'
 
 // ── Shape returned by Supabase for a transaction row ───────────────────────
 interface TxRow {
@@ -7,6 +7,10 @@ interface TxRow {
   date: string
   merchant: string
   amount: string | number
+  // Absent until supabase/007_currency.sql has run.
+  currency?: string | null
+  original_amount?: string | number | null
+  exchange_rate?: string | number | null
   account_name: string
   notes: string | null
   payer_id: string
@@ -18,12 +22,36 @@ interface TxRow {
   transaction_labels: { label_id: string }[]
 }
 
+// All three currency columns for a row (USD → 'USD', null, null).
+function currencyColumns(tx: Pick<Transaction, 'currency' | 'originalAmount' | 'exchangeRate'>) {
+  const foreign = tx.currency !== undefined && tx.currency !== 'USD'
+  return {
+    currency:        foreign ? tx.currency : 'USD',
+    original_amount: foreign ? tx.originalAmount ?? null : null,
+    exchange_rate:   foreign ? tx.exchangeRate ?? null : null,
+  }
+}
+
+// Inserts omit the columns for USD rows (the DB defaults to 'USD'), so USD
+// logging keeps working even before 007_currency.sql has been run.
+function insertCurrencyColumns(tx: Transaction) {
+  return tx.currency !== undefined && tx.currency !== 'USD' ? currencyColumns(tx) : {}
+}
+
 function mapRow(row: TxRow): Transaction {
+  const foreign = row.currency != null && row.currency !== 'USD'
   return {
     id: row.id,
     date: row.date,
     merchant: row.merchant,
     amount: Number(row.amount),
+    ...(foreign
+      ? {
+          currency:       row.currency as CurrencyCode,
+          originalAmount: row.original_amount != null ? Number(row.original_amount) : undefined,
+          exchangeRate:   row.exchange_rate != null ? Number(row.exchange_rate) : undefined,
+        }
+      : {}),
     accountName: row.account_name,
     notes: row.notes ?? undefined,
     payerId: row.payer_id as Transaction['payerId'],
@@ -68,6 +96,7 @@ export async function insertTransaction(
     project_id: tx.projectId ?? null,
     created_at: tx.createdAt,
     recurring_income_id: tx.recurringIncomeId ?? null,
+    ...insertCurrencyColumns(tx),
   })
   if (error) throw error
 
@@ -101,6 +130,7 @@ export async function insertTransactions(
       project_id: tx.projectId ?? null,
       created_at: tx.createdAt,
       recurring_income_id: tx.recurringIncomeId ?? null,
+      ...insertCurrencyColumns(tx),
     })),
   )
   if (error) throw error
@@ -132,6 +162,9 @@ export async function patchTransaction(
   if (updates.appliedTo  !== undefined) dbUpdates.applied_to  = updates.appliedTo
   if (updates.reviewed   !== undefined) dbUpdates.reviewed    = updates.reviewed
   if (updates.projectId   !== undefined) dbUpdates.project_id   = updates.projectId ?? null
+  // Currency is always written as a set (the form sends all three), so
+  // switching back to USD clears the original amount and rate.
+  if ('currency' in updates) Object.assign(dbUpdates, currencyColumns(updates))
 
   if (Object.keys(dbUpdates).length > 0) {
     const { error } = await supabase.from('transactions').update(dbUpdates).eq('id', id)

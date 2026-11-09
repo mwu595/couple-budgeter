@@ -15,7 +15,11 @@ import type {
   UserId,
   ActivePeriod,
   TransactionFilters,
+  CurrencyCode,
+  FxRate,
+  FxRateCache,
 } from '@/core/types'
+import { fetchUsdRate } from '@/lib/fx'
 import { generateMockData } from '@/core/mock'
 import {
   getMyHouseholdId,
@@ -112,6 +116,10 @@ export interface AppStore extends AppState {
   toggleReviewed: (id: string) => Promise<void>
   bulkDeleteTransactions: (ids: string[]) => Promise<void>
 
+  // Exchange rates — cached market rate (units per 1 USD) for `code` on `date`
+  // (YYYY-MM-DD; today / future / omitted = latest). Rejects if unavailable.
+  getExchangeRate: (code: CurrencyCode, date?: string) => Promise<FxRate>
+
   // Label actions
   addLabel: (data: Omit<Label, 'id'>) => Promise<Label>
   updateLabel: (id: string, updates: Partial<Omit<Label, 'id'>>) => Promise<void>
@@ -177,6 +185,9 @@ const DEFAULT_USERS: [User, User] = [
   { id: 'user_b', name: 'Person 2', avatarEmoji: '👩' },
 ]
 
+const FX_LATEST_TTL_MS  = 24 * 60 * 60 * 1000
+const FX_PRUNE_AFTER_MS = 180 * 24 * 60 * 60 * 1000
+
 // Initial state — data arrays are empty; Supabase fills them via loadHouseholdData.
 // UI state (period, filters, onboarding) is rehydrated from localStorage.
 function buildInitialState(): AppState {
@@ -188,6 +199,7 @@ function buildInitialState(): AppState {
     projects: [],
     recurringIncomes: [],
     budgets: [],
+    fxRates: {},
     activePeriod: DEFAULT_PERIOD,
     filters: DEFAULT_FILTERS,
     onboardingComplete: false,
@@ -294,6 +306,35 @@ export const useAppStore = create<AppStore>()(
           sampleDataDismissed: true,
           dataLoading: false,
         })
+      },
+
+      // ── Exchange rates ────────────────────────────────────────────────────
+      // On demand + cached: zero requests while every expense is in USD, at
+      // most one per currency per day while travelling. Past dates never
+      // expire (history doesn't change); `latest` lives for 24h.
+      getExchangeRate: async (code, date) => {
+        const today = fnsFormat(new Date(), 'yyyy-MM-dd')
+        const historical = date !== undefined && date !== '' && date < today
+        const key = `${code}@${historical ? date : 'latest'}`
+        const now = Date.now()
+
+        const cached = get().fxRates[key]
+        if (cached && (historical || now - Date.parse(cached.fetchedAt) < FX_LATEST_TTL_MS)) {
+          return cached
+        }
+
+        const { rate, rateDate } = await fetchUsdRate(code, historical ? date : undefined)
+        const entry: FxRate = { rate, rateDate, fetchedAt: new Date(now).toISOString() }
+
+        set((state) => {
+          const next: FxRateCache = {}
+          for (const [k, v] of Object.entries(state.fxRates)) {
+            if (now - Date.parse(v.fetchedAt) < FX_PRUNE_AFTER_MS) next[k] = v
+          }
+          next[key] = entry
+          return { fxRates: next }
+        })
+        return entry
       },
 
       // ── Transactions ──────────────────────────────────────────────────────
@@ -931,6 +972,7 @@ export const useAppStore = create<AppStore>()(
         onboardingComplete: state.onboardingComplete,
         sampleDataDismissed: state.sampleDataDismissed,
         dashboardExcludedProjectIds: state.dashboardExcludedProjectIds,
+        fxRates: state.fxRates,
       }),
     },
   ),

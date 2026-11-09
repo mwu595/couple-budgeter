@@ -157,8 +157,19 @@ create table if not exists transactions (
   project_id           uuid references projects(id) on delete set null,
   recurring_income_id  uuid references recurring_incomes(id) on delete set null,
   plaid_transaction_id text unique,
+  -- Multi-currency (v0.11.0): amount is always USD; foreign expenses also
+  -- keep what was paid and the locked rate (units of currency per 1 USD).
+  currency             text not null default 'USD' check (currency ~ '^[A-Z]{3}$'),
+  original_amount      numeric(14,2),
+  exchange_rate        numeric(18,8) check (exchange_rate is null or exchange_rate > 0),
   created_at           timestamptz default now()
 );
+
+-- Deployments created before multi-currency: `create table if not exists`
+-- above is a no-op for them, so add the columns here.
+alter table transactions add column if not exists currency        text not null default 'USD';
+alter table transactions add column if not exists original_amount numeric(14,2);
+alter table transactions add column if not exists exchange_rate   numeric(18,8);
 
 create table if not exists transaction_labels (
   transaction_id uuid not null references transactions(id) on delete cascade,

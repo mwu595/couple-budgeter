@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { format } from 'date-fns'
+import { useRef, useState } from 'react'
+import { format, parseISO } from 'date-fns'
 import { Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,8 +11,25 @@ import { LabelPicker } from '@/components/LabelPicker'
 import { AccountPicker } from '@/components/AccountPicker'
 import { ProjectPicker } from '@/components/ProjectPicker'
 import { ConfirmDialog } from '@/components/ConfirmDialog'
-import type { Transaction, PayerId, UserId } from '@/core/types'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import type { Transaction, PayerId, UserId, CurrencyCode } from '@/core/types'
 import { useAppStore, useLabels, useUsers, useAccounts, useProjects } from '@/core/store'
+import {
+  BASE_CURRENCY,
+  PINNED_CURRENCIES,
+  OTHER_CURRENCIES,
+  currencyName,
+  currencySymbol,
+  formatCurrency,
+  toUsd,
+} from '@/core/utils'
 import { cn } from '@/lib/utils'
 
 interface TransactionFormProps {
@@ -21,10 +38,23 @@ interface TransactionFormProps {
   onCancel: () => void
 }
 
+// Hides the browser's up/down stepper on number inputs.
+const NO_SPINNER =
+  '[appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none'
+
+// market = fetched for the expense date · manual = typed by the user (never
+// overwritten by a fetch) · locked = the rate an existing expense was saved with
+type RateSource = 'market' | 'manual' | 'locked'
+type RateStatus = 'idle' | 'loading' | 'error'
+
 type FormValues = {
   date: string
   merchant: string
-  amount: string
+  amount: string        // in `currency` — the amount actually paid
+  currency: CurrencyCode
+  rate: string          // units of `currency` per 1 USD; '' for USD
+  rateSource: RateSource
+  rateDate: string      // date the market rate was published for ('' otherwise)
   accountName: string
   notes: string
   reviewed: boolean
@@ -36,10 +66,15 @@ type FormValues = {
 
 function getDefaults(tx?: Transaction): FormValues {
   if (tx) {
+    const foreign = tx.currency !== undefined && tx.currency !== BASE_CURRENCY
     return {
       date:        tx.date,
       merchant:    tx.merchant,
-      amount:      String(tx.amount),
+      amount:      String(foreign ? tx.originalAmount ?? tx.amount : tx.amount),
+      currency:    foreign && tx.currency ? tx.currency : BASE_CURRENCY,
+      rate:        foreign && tx.exchangeRate ? String(tx.exchangeRate) : '',
+      rateSource:  foreign && tx.exchangeRate ? 'locked' : 'manual',
+      rateDate:    '',
       accountName: tx.accountName,
       notes:       tx.notes ?? '',
       reviewed:    tx.reviewed,
@@ -53,6 +88,10 @@ function getDefaults(tx?: Transaction): FormValues {
     date:        '',
     merchant:    '',
     amount:      '',
+    currency:    BASE_CURRENCY,   // new expenses always start in USD
+    rate:        '',
+    rateSource:  'market',
+    rateDate:    '',
     accountName: '',
     notes:       '',
     reviewed:    false,
@@ -67,22 +106,81 @@ export function TransactionForm({ transaction, onSuccess, onCancel }: Transactio
   const [values, setValues] = useState<FormValues>(() => getDefaults(transaction))
   const [errors, setErrors] = useState<Partial<Record<keyof FormValues, string>>>({})
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [rateStatus, setRateStatus] = useState<RateStatus>('idle')
+  // Bumped on every rate request / manual edit so a slow fetch never
+  // overwrites a newer choice.
+  const rateRequest = useRef(0)
 
   // Individual stable selectors — no new object per render
   const addTransaction    = useAppStore((s) => s.addTransaction)
   const updateTransaction = useAppStore((s) => s.updateTransaction)
   const deleteTransaction = useAppStore((s) => s.deleteTransaction)
+  const getExchangeRate   = useAppStore((s) => s.getExchangeRate)
   const allLabels         = useLabels()
   const allAccounts       = useAccounts()
   const allProjects       = useProjects()
   const users             = useUsers()
 
   const isEditing = Boolean(transaction)
+  const isForeign = values.currency !== BASE_CURRENCY
 
   function field<K extends keyof FormValues>(key: K, value: FormValues[K]) {
     setValues((v) => ({ ...v, [key]: value }))
     if (errors[key]) setErrors((e) => ({ ...e, [key]: undefined }))
   }
+
+  async function loadMarketRate(code: CurrencyCode, date: string) {
+    const request = ++rateRequest.current
+    setRateStatus('loading')
+    try {
+      const fx = await getExchangeRate(code, date || undefined)
+      if (request !== rateRequest.current) return
+      setValues((v) =>
+        v.currency === code && v.rateSource !== 'manual'
+          ? { ...v, rate: String(fx.rate), rateSource: 'market', rateDate: fx.rateDate }
+          : v,
+      )
+      setErrors((e) => ({ ...e, rate: undefined }))
+      setRateStatus('idle')
+    } catch {
+      if (request !== rateRequest.current) return
+      setRateStatus('error')
+    }
+  }
+
+  function handleCurrencyChange(code: CurrencyCode) {
+    if (code === values.currency) return
+    rateRequest.current++
+    setRateStatus('idle')
+    setValues((v) => ({ ...v, currency: code, rate: '', rateSource: 'market', rateDate: '' }))
+    setErrors((e) => ({ ...e, rate: undefined }))
+    if (code !== BASE_CURRENCY) void loadMarketRate(code, values.date)
+  }
+
+  function handleDateChange(date: string) {
+    field('date', date)
+    // The market rate follows the expense date; manual and locked rates stay put.
+    if (isForeign && values.rateSource === 'market') void loadMarketRate(values.currency, date)
+  }
+
+  function handleRateChange(rate: string) {
+    rateRequest.current++
+    setRateStatus('idle')
+    setValues((v) => ({ ...v, rate, rateSource: 'manual', rateDate: '' }))
+    if (errors.rate) setErrors((e) => ({ ...e, rate: undefined }))
+  }
+
+  function applyMarketRate() {
+    setValues((v) => ({ ...v, rateSource: 'market' }))
+    void loadMarketRate(values.currency, values.date)
+  }
+
+  const parsedAmount = parseFloat(values.amount)
+  const parsedRate   = parseFloat(values.rate)
+  const rateValid    = !isNaN(parsedRate) && parsedRate > 0
+  const usdPreview   = isForeign && rateValid && !isNaN(parsedAmount)
+    ? toUsd(parsedAmount, parsedRate)
+    : null
 
   function validate(): boolean {
     const next: Partial<Record<keyof FormValues, string>> = {}
@@ -92,6 +190,9 @@ export function TransactionForm({ transaction, onSuccess, onCancel }: Transactio
     if (!values.forPersonId)        next.forPersonId = 'Required'
     const parsed = parseFloat(values.amount)
     if (!values.amount || isNaN(parsed)) next.amount = 'Enter a valid number'
+    if (isForeign && !rateValid) {
+      next.rate = rateStatus === 'loading' ? 'Still fetching the rate…' : 'Enter an exchange rate'
+    }
     setErrors(next)
     return Object.keys(next).length === 0
   }
@@ -100,11 +201,19 @@ export function TransactionForm({ transaction, onSuccess, onCancel }: Transactio
     e.preventDefault()
     if (!validate()) return
 
-    const amount = parseFloat(values.amount)
+    const entered = parseFloat(values.amount)
+    // USD is canonical: `amount` is converted once here and never again.
+    const currencyFields: Pick<Transaction, 'currency' | 'originalAmount' | 'exchangeRate'> = isForeign
+      ? { currency: values.currency, originalAmount: entered, exchangeRate: parsedRate }
+      : { currency: BASE_CURRENCY, originalAmount: undefined, exchangeRate: undefined }
+    const wasForeign = transaction?.currency !== undefined && transaction.currency !== BASE_CURRENCY
     const data = {
       date:        values.date,
       merchant:    values.merchant.trim(),
-      amount,
+      amount:      isForeign ? toUsd(entered, parsedRate) : entered,
+      // Only send currency fields when they matter, so USD-only edits never
+      // touch the currency columns.
+      ...(isForeign || wasForeign ? currencyFields : {}),
       accountName: values.accountName.trim(),
       reviewed:    values.reviewed,
       projectId:   values.projectId,
@@ -152,15 +261,46 @@ export function TransactionForm({ transaction, onSuccess, onCancel }: Transactio
       <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1.5">
           <Label htmlFor="amount">Amount <span className="text-destructive">*</span></Label>
-          <Input
-            id="amount"
-            type="number"
-            step="0.01"
-            min="0"
-            value={values.amount}
-            onChange={(e) => field('amount', e.target.value)}
-            placeholder="0.00"
-          />
+          {/* One input-styled box: tappable currency symbol, then the number */}
+          <div
+            className={cn(
+              'flex h-9 items-center rounded-lg border border-foreground transition-colors focus-within:ring-3 focus-within:ring-ring/30',
+              errors.amount && 'border-destructive',
+            )}
+          >
+            <Select
+              value={values.currency}
+              onValueChange={(code) => { if (code) handleCurrencyChange(code) }}
+            >
+              <SelectTrigger
+                aria-label={`Currency: ${values.currency}`}
+                title={`${values.currency} — change currency`}
+                className="ml-1 shrink-0 gap-0 rounded-md border-0 bg-transparent px-1.5 font-medium data-[size=default]:h-7 hover:bg-secondary focus-visible:ring-0 focus-visible:bg-secondary dark:bg-transparent [&>svg]:hidden"
+              >
+                <SelectValue>{(code: CurrencyCode) => currencySymbol(code)}</SelectValue>
+              </SelectTrigger>
+              <SelectContent alignItemWithTrigger={false} align="start" className="w-64">
+                {PINNED_CURRENCIES.map((code) => (
+                  <CurrencyOption key={code} code={code} />
+                ))}
+                <SelectSeparator />
+                {OTHER_CURRENCIES.map((code) => (
+                  <CurrencyOption key={code} code={code} />
+                ))}
+              </SelectContent>
+            </Select>
+            <Input
+              id="amount"
+              type="number"
+              step="0.01"
+              min="0"
+              inputMode="decimal"
+              value={values.amount}
+              onChange={(e) => field('amount', e.target.value)}
+              placeholder="0.00"
+              className={cn('h-full rounded-none border-0 pl-1 focus-visible:ring-0', NO_SPINNER)}
+            />
+          </div>
           {errors.amount && (
             <p className="text-xs text-destructive">{errors.amount}</p>
           )}
@@ -171,13 +311,61 @@ export function TransactionForm({ transaction, onSuccess, onCancel }: Transactio
             id="date"
             type="date"
             value={values.date}
-            onChange={(e) => field('date', e.target.value)}
+            onChange={(e) => handleDateChange(e.target.value)}
           />
           {errors.date && (
             <p className="text-xs text-destructive">{errors.date}</p>
           )}
         </div>
       </div>
+
+      {/* Exchange rate — foreign currency only */}
+      {isForeign && (
+        <div className="space-y-1.5">
+          <Label htmlFor="rate">Exchange rate <span className="text-destructive">*</span></Label>
+          <div className="flex items-center gap-2 text-sm">
+            <span className="text-muted-foreground whitespace-nowrap">1 USD =</span>
+            <Input
+              id="rate"
+              type="number"
+              step="any"
+              min="0"
+              inputMode="decimal"
+              value={values.rate}
+              onChange={(e) => handleRateChange(e.target.value)}
+              placeholder={rateStatus === 'loading' ? 'Fetching…' : '0.0000'}
+              className={cn('w-28', NO_SPINNER)}
+            />
+            <span className="text-muted-foreground">{values.currency}</span>
+            {usdPreview !== null && (
+              <span className="ml-auto font-medium tabular-nums whitespace-nowrap">
+                ≈ {formatCurrency(usdPreview)}
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            {rateStatus === 'loading' && 'Fetching market rate…'}
+            {rateStatus === 'error' && "Couldn't fetch a market rate — enter one manually."}
+            {rateStatus === 'idle' && values.rateSource === 'market' && values.rateDate &&
+              `Market rate · ${format(parseISO(values.rateDate), 'MMM d, yyyy')}`}
+            {rateStatus === 'idle' && values.rateSource === 'manual' && 'Manual rate'}
+            {rateStatus === 'idle' && values.rateSource === 'locked' && 'Locked at the rate this expense was saved with'}
+            {(rateStatus === 'idle' && values.rateSource !== 'market') || rateStatus === 'error' ? (
+              <>
+                {' · '}
+                <button
+                  type="button"
+                  onClick={applyMarketRate}
+                  className="underline underline-offset-2 hover:text-foreground"
+                >
+                  {rateStatus === 'error' ? 'Retry' : 'Use market rate'}
+                </button>
+              </>
+            ) : null}
+          </p>
+          {errors.rate && <p className="text-xs text-destructive">{errors.rate}</p>}
+        </div>
+      )}
 
       {/* Who pays + For — side by side */}
       <div className="grid grid-cols-2 gap-3">
@@ -187,7 +375,7 @@ export function TransactionForm({ transaction, onSuccess, onCancel }: Transactio
             {([
               { id: users[0].id, emoji: users[0].avatarEmoji },
               { id: users[1].id, emoji: users[1].avatarEmoji },
-              { id: 'shared',    emoji: `${users[0].avatarEmoji}${users[1].avatarEmoji}` },
+              { id: 'shared',    emoji: 'Split' },
             ] as { id: PayerId; emoji: string }[]).map((opt) => (
               <button
                 key={opt.id}
@@ -213,7 +401,7 @@ export function TransactionForm({ transaction, onSuccess, onCancel }: Transactio
             {([
               { id: users[0].id, emoji: users[0].avatarEmoji },
               { id: users[1].id, emoji: users[1].avatarEmoji },
-              { id: 'shared',    emoji: `${users[0].avatarEmoji}${users[1].avatarEmoji}` },
+              { id: 'shared',    emoji: 'Both' },
             ] as { id: UserId | 'shared'; emoji: string }[]).map((opt) => (
               <button
                 key={opt.id}
@@ -343,5 +531,15 @@ export function TransactionForm({ transaction, onSuccess, onCancel }: Transactio
         onCancel={() => setConfirmOpen(false)}
       />
     </form>
+  )
+}
+
+function CurrencyOption({ code }: { code: CurrencyCode }) {
+  return (
+    <SelectItem value={code}>
+      <span className="w-6 text-muted-foreground">{currencySymbol(code)}</span>
+      <span className="w-9 font-medium">{code}</span>
+      <span className="text-muted-foreground">{currencyName(code)}</span>
+    </SelectItem>
   )
 }

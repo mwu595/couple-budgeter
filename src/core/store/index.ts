@@ -32,6 +32,7 @@ export const useTransactionActions = () =>
     deleteTransaction:       s.deleteTransaction,
     toggleReviewed:          s.toggleReviewed,
     bulkDeleteTransactions:  s.bulkDeleteTransactions,
+    getExchangeRate:         s.getExchangeRate,
   }))
 
 export const useLabelActions = () =>

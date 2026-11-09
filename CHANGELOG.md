@@ -2,6 +2,16 @@
 
 ---
 
+## [0.11.0] — 2026-11-09
+
+Log expenses in the currency you actually paid. The Amount field now has a currency picker — USD and RMB pinned on top, about 28 others below — and picking anything but USD opens a rate row: `1 USD = 6.67 CNY · ≈ $14.99`. The rate is filled in automatically with the market rate for the expense's date, or type your own. On save the expense is converted to USD once and the rate is locked, so the dashboard, budgets and charts (all USD, unchanged) never shift when exchange rates do. The list shows the USD amount with what you paid (`¥100.00 CNY`) underneath, and the CSV export gains Currency, Original Amount and Exchange Rate columns.
+
+New expenses always start in USD; editing one keeps its currency and locked rate. Rates come from Frankfurter (European Central Bank reference rates — free, no API key), fetched only when you pick a foreign currency and cached on the device: nothing is requested in the months you only spend dollars, and at most once per currency per day while you travel. If the rate can't be fetched, the form asks you to type one. Run `supabase/007_currency.sql` (or the consolidated `setup.sql`) to add the `currency`, `original_amount` and `exchange_rate` columns — USD expenses keep working before you do.
+
+The expense form got lighter too: the currency is just its symbol at the start of the Amount box (tap it to switch), number fields lose the browser's up/down stepper, and the shared options read **Split** under Who Pays and **Both** under For Who instead of two avatars. Everywhere you read rather than tap — the list, the dashboard — still shows the avatar pair.
+
+---
+
 ## [0.10.0] — 2026-09-22
 
 Budgets. A new block under the summary cards where you cap what you actually think of as a category — one label ("Dining"), several ("Travel" = Flights + Hotels), or labels plus the projects you already file trips under. Caps are monthly for the regular stuff and yearly for the lumpy stuff, and they recur: set "Travel $10,000 a year" once and every year gets it. Each tile puts the spend against the cap on a meter that's green while you're on track, amber from 80%, red once you're over — split into a segment per label or project so you can see what's eating it — under "$X left · 12 days left". A transaction is only ever counted once, even when it carries a budgeted label *and* sits in a budgeted project, and a cap is always measured against a whole month or year, so a half-month filter never makes one look healthy.

@@ -35,11 +35,37 @@ export interface Project {
   budget?: number    // optional spending cap
 }
 
+// ─── Currency ────────────────────────────────────────────────────────────────
+
+// ISO 4217 codes supported by the exchange-rate source (Frankfurter / ECB).
+// Display metadata (names, ordering) lives in core/utils/currencies.ts.
+export type CurrencyCode =
+  | 'USD' | 'CNY'
+  | 'AUD' | 'BRL' | 'CAD' | 'CHF' | 'CZK' | 'DKK' | 'EUR' | 'GBP'
+  | 'HKD' | 'HUF' | 'IDR' | 'ILS' | 'INR' | 'ISK' | 'JPY' | 'KRW'
+  | 'MXN' | 'MYR' | 'NOK' | 'NZD' | 'PHP' | 'PLN' | 'RON' | 'SEK'
+  | 'SGD' | 'THB' | 'TRY' | 'ZAR'
+
+// A market rate: `rate` units of the currency per 1 USD, as published for `rateDate`.
+export interface FxRate {
+  rate: number
+  rateDate: string   // YYYY-MM-DD the source published this rate for
+  fetchedAt: string  // ISO datetime we fetched it
+}
+
+// Keyed `${code}@${YYYY-MM-DD}` for past dates, `${code}@latest` for today.
+export type FxRateCache = Record<string, FxRate>
+
 export interface Transaction {
   id: string         // e.g. 'txn_001' for mock data, uuid in v2
   date: string       // ISO date 'YYYY-MM-DD'
   merchant: string
-  amount: number     // positive = expense, negative = refund / income
+  amount: number     // USD. positive = expense, negative = refund / income
+  // Foreign-currency expenses only (absent / 'USD' = logged in USD).
+  // amount = originalAmount / exchangeRate, fixed at save time.
+  currency?: CurrencyCode
+  originalAmount?: number  // amount actually paid, in `currency`
+  exchangeRate?: number    // units of `currency` per 1 USD — locked once saved
   accountName: string // free text in MVP; will map to account id in v2
   notes?: string
   payerId: PayerId
@@ -129,6 +155,7 @@ export interface AppState {
   projects: Project[]
   recurringIncomes: RecurringIncome[]
   budgets: Budget[]
+  fxRates: FxRateCache          // exchange-rate cache (persisted locally)
   activePeriod: ActivePeriod
   filters: TransactionFilters
   onboardingComplete: boolean
